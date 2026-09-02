@@ -123,7 +123,40 @@ case "$METHOD" in
     if [[ $APPLY -eq 0 ]]; then
       echo "ℹ️  これは表示のみです。実際には登録していません。"
       echo "   登録する場合: ./scripts/install_schedule.sh --method systemd --apply"
+      # 登録できる環境かどうかだけ先に知らせる（プレビュー自体は成功扱い）
+      if ! systemctl --user show-environment >/dev/null 2>&1; then
+        echo ""
+        echo "⚠️  ただし、この環境では systemd のユーザーセッションに接続できないため、"
+        echo "    --apply を付けても登録できません（詳細は --apply 実行時に表示されます）。"
+      fi
       exit 0
+    fi
+
+    # systemd が実際に動いているか確認する。
+    # コンテナ等では systemctl コマンドがあっても systemd が PID1 として動いておらず、
+    # ユニットファイルだけ作られて「登録できたつもり」になる事故が起きるため。
+    if ! systemctl --user show-environment >/dev/null 2>&1; then
+      cat >&2 <<'MSG'
+
+🚨 systemd のユーザーセッションに接続できません。この環境では登録できません。
+
+  考えられる原因:
+    - systemd が PID1 として動いていない（Docker等のコンテナでよくあります）
+    - ユーザーセッションが開始されていない（XDG_RUNTIME_DIR が未設定）
+    - SSHでログインしただけで、ログインセッションが確立していない
+
+  確認方法:
+    ps -p 1 -o comm=            → systemd と表示されるか
+    echo $XDG_RUNTIME_DIR       → /run/user/<uid> が表示されるか
+
+  対処:
+    - 通常のデスクトップPC／サーバーであれば、デスクトップにログインするか
+      `loginctl enable-linger $USER` を実行してから再試行してください。
+    - cron が使える環境なら --method cron をお試しください。
+    - どちらも使えない場合は、手動実行（./scripts/run_morning.sh 等）でご利用ください。
+
+MSG
+      exit 1
     fi
 
     echo "🚨 これから $UNIT_DIR に .service / .timer を作成し、タイマーを有効化します。"
@@ -156,16 +189,31 @@ for line in out.splitlines():
         buf.append(line)
 flush()
 PY
-    systemctl --user daemon-reload
+    if ! systemctl --user daemon-reload; then
+      echo "🚨 daemon-reload に失敗しました。タイマーは有効化されていません。" >&2
+      echo "   作成済みのユニットファイル: $UNIT_DIR" >&2
+      exit 1
+    fi
+    ENABLED=0; FAILED=0
     while read -r key; do
       [[ -z "$key" ]] && continue
-      systemctl --user enable --now "smarthouse-${key}.timer" && echo "✅ 有効化: smarthouse-${key}.timer"
+      if systemctl --user enable --now "smarthouse-${key}.timer"; then
+        echo "✅ 有効化: smarthouse-${key}.timer"; ENABLED=$((ENABLED+1))
+      else
+        echo "🚨 有効化に失敗: smarthouse-${key}.timer" >&2; FAILED=$((FAILED+1))
+      fi
     done < <(python3 -c "
 import json,os
 cfg=json.load(open(os.path.join('$BASE_DIR','config','schedule.json'),encoding='utf-8'))
 [print(r['key']) for r in cfg['routines'] if r.get('enabled',True)]")
     echo ""
-    echo "✅ 登録しました。確認: systemctl --user list-timers 'smarthouse-*'"
+    if [[ $FAILED -gt 0 ]]; then
+      echo "🚨 ${FAILED}件の有効化に失敗しました（成功 ${ENABLED}件）。" >&2
+      echo "   確認: systemctl --user list-timers 'smarthouse-*'" >&2
+      exit 1
+    fi
+    echo "✅ ${ENABLED}件のタイマーを登録しました。"
+    echo "   確認: systemctl --user list-timers 'smarthouse-*'"
     echo "ℹ️  ログアウトしても動かすには: loginctl enable-linger \$USER"
     ;;
   *)
