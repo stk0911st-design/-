@@ -1,0 +1,10 @@
+# 機密情報はここに置く（push されない）
+private/*
+!private/.gitkeep
+
+# OS / エディタ
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
