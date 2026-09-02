@@ -1,0 +1,17 @@
+# レインズのエクスポート実データは絶対にコミットしない（会員規約・個人情報保護のため）
+data/reins_export/*
+!data/reins_export/.gitkeep
+!data/reins_export/README.md
+data/snapshots/*
+!data/snapshots/.gitkeep
+data/reports/*
+!data/reports/.gitkeep
+data/public/*
+!data/public/.gitkeep
+
+# 認証情報
+.env
+*.key
+
+__pycache__/
+*.pyc
