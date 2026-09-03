@@ -1,9 +1,9 @@
-"""2つのスナップショットを比べて、新規・価格変更・掲載終了・その他変更を洗い出す。
+"""2つのスナップショットを比べて、売出の新規・値動き・掲載終了と、新規成約を洗い出す。
 
 使い方:
-    python3 scripts/diff_snapshots.py [--new <日付>] [--old <日付>] [--json]
+    python3 scripts/diff_snapshots.py [--今回 <日付>] [--前回 <日付>] [--json]
 
---new/--old を省略すると、いちばん新しい2件を自動で比べる。
+--今回/--前回 を省略すると、いちばん新しい2件を自動で比べる。
 """
 from __future__ import annotations
 
@@ -15,104 +15,114 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import common as c
 
-# 差分として見る対象の項目（内部計算用の項目は除く）
-WATCH_FIELDS = ("price_man", "layout", "land_sqm", "building_sqm", "transaction_type", "remarks")
+# 差分として見る項目
+変更監視項目 = ("間取り", "土地面積㎡", "建物面積㎡", "取引態様", "備考")
 
 
-def label(item: dict) -> str:
-    bits = [
-        str(item.get("property_type") or ""),
-        str(item.get("address") or item.get("station") or ""),
-        f"{item.get('price_man'):,.0f}万円" if item.get("price_man") else str(item.get("price") or ""),
-    ]
+def 表示名(item: dict) -> str:
+    価格 = c.金額表示(item["価格万円"]) if item.get("価格万円") else str(item.get("価格") or "")
+    bits = [str(item.get("物件種目") or ""), str(item.get("所在地") or item.get("駅") or ""), 価格]
     return " / ".join(b for b in bits if b) or "(詳細不明)"
 
 
-def resolve(path_or_date: str | None, fallback: Path | None) -> Path | None:
-    if path_or_date:
-        p = Path(path_or_date)
-        return p if p.exists() else c.SNAPSHOT_DIR / f"{path_or_date}.json"
-    return fallback
+def 該当リスト(item: dict, watchlists: list[dict], dataset: str) -> list[str]:
+    return [w["id"] for w in watchlists
+            if dataset in w["対象データ"] and c.matches(item, w)]
 
 
-def compute(old: dict, new: dict, cr: dict) -> dict:
-    old_items, new_items = old.get("items", {}), new.get("items", {})
-    threshold = (cr.get("report") or {}).get("price_drop_threshold_pct", 0.0)
+def エントリ(キー: str, item: dict, watchlists: list[dict], dataset: str, **extra) -> dict:
+    return {"キー": キー, "表示": 表示名(item), "物件": item,
+            "該当リスト": 該当リスト(item, watchlists, dataset), **extra}
 
-    added, removed, price_changes, other_changes = [], [], [], []
 
-    for key, item in new_items.items():
-        if key not in old_items:
-            added.append({"id": key, "label": label(item), "item": item,
-                          "matched": c.matches_criteria(item, cr)})
+def 物件辞書(snapshot: dict, dataset: str) -> dict:
+    return ((snapshot.get("データ") or {}).get(dataset) or {}).get("物件") or {}
+
+
+def 差分を出す(前回: dict, 今回: dict, config: dict) -> dict:
+    watchlists = c.resolve_watchlists(config)
+    しきい値 = (config.get("レポート") or {}).get("価格変動しきい値パーセント", 0.0)
+
+    result = {"前回日付": 前回.get("日付"), "今回日付": 今回.get("日付")}
+
+    # ---- 売出: 新規 / 価格変更 / その他変更 / 掲載終了
+    旧, 新 = 物件辞書(前回, "売出"), 物件辞書(今回, "売出")
+    新規, 掲載終了, 価格変更, その他変更 = [], [], [], []
+
+    for キー, item in 新.items():
+        if キー not in 旧:
+            新規.append(エントリ(キー, item, watchlists, "売出"))
             continue
 
-        before = old_items[key]
-        op, np_ = before.get("price_man"), item.get("price_man")
-        if op and np_ and op != np_:
-            pct = (np_ - op) / op * 100
-            if abs(pct) >= threshold:
-                price_changes.append({"id": key, "label": label(item), "item": item,
-                                      "old_price_man": op, "new_price_man": np_,
-                                      "pct": round(pct, 2),
-                                      "matched": c.matches_criteria(item, cr)})
+        前 = 旧[キー]
+        旧価格, 新価格 = 前.get("価格万円"), item.get("価格万円")
+        if 旧価格 and 新価格 and 旧価格 != 新価格:
+            変動率 = (新価格 - 旧価格) / 旧価格 * 100
+            if abs(変動率) >= しきい値:
+                価格変更.append(エントリ(キー, item, watchlists, "売出",
+                                    前回価格万円=旧価格, 今回価格万円=新価格,
+                                    変動率=round(変動率, 2)))
 
-        changed = {
-            f: {"old": before.get(f), "new": item.get(f)}
-            for f in WATCH_FIELDS
-            if f != "price_man" and before.get(f) != item.get(f)
-        }
-        if changed:
-            other_changes.append({"id": key, "label": label(item), "changes": changed,
-                                  "matched": c.matches_criteria(item, cr)})
+        変更 = {f: {"前": 前.get(f), "後": item.get(f)}
+                for f in 変更監視項目 if 前.get(f) != item.get(f)}
+        if 変更:
+            その他変更.append(エントリ(キー, item, watchlists, "売出", 変更内容=変更))
 
-    for key, item in old_items.items():
-        if key not in new_items:
-            removed.append({"id": key, "label": label(item), "item": item,
-                            "matched": c.matches_criteria(item, cr)})
+    for キー, item in 旧.items():
+        if キー not in 新:
+            掲載終了.append(エントリ(キー, item, watchlists, "売出"))
 
-    return {
-        "old_date": old.get("date"),
-        "new_date": new.get("date"),
-        "old_count": len(old_items),
-        "new_count": len(new_items),
-        "added": added,
-        "removed": removed,
-        "price_changes": price_changes,
-        "other_changes": other_changes,
-    }
+    result["売出"] = {"前回件数": len(旧), "今回件数": len(新), "新規": 新規,
+                      "価格変更": 価格変更, "その他変更": その他変更, "掲載終了": 掲載終了}
+
+    # ---- 成約: 新しく成約として登場したもの
+    旧成約, 新成約 = 物件辞書(前回, "成約"), 物件辞書(今回, "成約")
+    新規成約 = [エントリ(キー, item, watchlists, "成約")
+                for キー, item in 新成約.items() if キー not in 旧成約]
+    result["成約"] = {"前回件数": len(旧成約), "今回件数": len(新成約), "新規成約": 新規成約}
+
+    return result
+
+
+def 解決(指定: str | None, 既定: Path | None) -> Path | None:
+    if 指定:
+        p = Path(指定)
+        return p if p.exists() else c.SNAPSHOT_DIR / f"{指定}.json"
+    return 既定
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--new")
-    parser.add_argument("--old")
+    parser.add_argument("--今回", dest="今回")
+    parser.add_argument("--前回", dest="前回")
     parser.add_argument("--json", action="store_true", help="結果をJSONで標準出力に出す")
     args = parser.parse_args()
 
-    recent = c.latest_snapshots(2)
-    new_path = resolve(args.new, recent[0] if recent else None)
-    old_path = resolve(args.old, recent[1] if len(recent) > 1 else None)
+    直近 = c.latest_snapshots(2)
+    今回パス = 解決(args.今回, 直近[0] if 直近 else None)
+    前回パス = 解決(args.前回, 直近[1] if len(直近) > 1 else None)
 
-    if not new_path or not new_path.exists():
-        print("[diff] 比較できるスナップショットがありません。先に normalize_reins.py を実行してください。")
+    if not 今回パス or not 今回パス.exists():
+        print("[差分] 比較できるスナップショットがありません。先に normalize_reins.py を実行してください。")
         return 2
-    new = c.load_json(new_path)
+    今回 = c.load_json(今回パス)
 
-    if not old_path or not old_path.exists():
-        print(f"[diff] 前回分がないため、{new_path.name} を初回スナップショットとして扱います（差分なし）。")
-        old = {"date": None, "items": {}}
+    if not 前回パス or not 前回パス.exists():
+        print(f"[差分] 前回分がないため、{今回パス.name} を初回スナップショットとして扱います（差分なし）。")
+        前回 = {"日付": None, "データ": {}}
     else:
-        old = c.load_json(old_path)
+        前回 = c.load_json(前回パス)
 
-    result = compute(old, new, c.load_criteria())
+    r = 差分を出す(前回, 今回, c.load_config())
     if args.json:
-        print(json.dumps(result, ensure_ascii=False, indent=2))
+        print(json.dumps(r, ensure_ascii=False, indent=2))
     else:
-        print(f"[diff] {result['old_date']} ({result['old_count']}件) -> "
-              f"{result['new_date']} ({result['new_count']}件)")
-        print(f"  新規 {len(result['added'])} / 価格変更 {len(result['price_changes'])} / "
-              f"掲載終了 {len(result['removed'])} / その他変更 {len(result['other_changes'])}")
+        s, k = r["売出"], r["成約"]
+        print(f"[差分] {r['前回日付'] or '(初回)'} -> {r['今回日付']}")
+        print(f"  売出: {s['前回件数']}件 -> {s['今回件数']}件 ／ 新規 {len(s['新規'])} ／ "
+              f"価格変更 {len(s['価格変更'])} ／ 掲載終了 {len(s['掲載終了'])} ／ "
+              f"その他変更 {len(s['その他変更'])}")
+        print(f"  成約: {k['前回件数']}件 -> {k['今回件数']}件 ／ 新規成約 {len(k['新規成約'])}")
     return 0
 
 

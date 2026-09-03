@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 # 毎日の不動産チェックを一括で回す。
 #   ./run_daily.sh
-# 事前に data/reins_export/ に当日のレインズCSVを置いておくこと。
+#
+# 事前準備: レインズでエクスポートしたCSVを置く
+#   data/reins_export/売出/  … 販売中（売出）物件
+#   data/reins_export/成約/  … 成約物件
 set -uo pipefail
 cd "$(dirname "$0")"
 

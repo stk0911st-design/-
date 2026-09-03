@@ -1,10 +1,15 @@
 """レインズからエクスポートしたCSVを、日次スナップショット(JSON)に正規化する。
 
 使い方:
-    python3 scripts/normalize_reins.py [--date YYYY-MM-DD]
+    python3 scripts/normalize_reins.py [--日付 YYYY-MM-DD]
 
-data/reins_export/ に置かれた *.csv を全部読み、列名の揺れを config/field_mapping.json で
-吸収して data/snapshots/<日付>.json に保存する。元CSVはそのまま残す（削除しない）。
+読み込み先:
+    data/reins_export/売出/*.csv   … 販売中（売出）物件
+    data/reins_export/成約/*.csv   … 成約物件
+    data/reins_export/*.csv        … フォルダ分けしていない場合は「売出」として扱う
+
+列名の揺れは config/field_mapping.json で吸収し、data/snapshots/<日付>.json に保存する。
+元CSVは削除せずそのまま残す。
 """
 from __future__ import annotations
 
@@ -19,7 +24,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import common as c
 
 
-def find_header_row(text: str, candidates: set[str]) -> int:
+def 見出し行を探す(text: str, candidates: set[str]) -> int:
     """先頭に説明行が入っているCSVでも、見出し行の位置を探し当てる。"""
     for i, line in enumerate(text.splitlines()[:20]):
         cells = {cell.strip().strip('"') for cell in line.split(",")}
@@ -28,15 +33,15 @@ def find_header_row(text: str, candidates: set[str]) -> int:
     return 0
 
 
-def build_reverse_map(mapping: dict) -> dict[str, str]:
+def 逆引き表を作る(mapping: dict) -> dict[str, str]:
     rev = {}
-    for canonical, candidates in mapping.items():
-        for name in candidates:
-            rev[name.strip()] = canonical
+    for 正規化名, 候補 in mapping.items():
+        for name in 候補:
+            rev[name.strip()] = 正規化名
     return rev
 
 
-def normalize_row(row: dict, rev: dict[str, str]) -> dict:
+def 行を正規化(row: dict, rev: dict[str, str], dataset: str) -> dict:
     item: dict = {}
     raw: dict = {}
     for key, value in row.items():
@@ -45,68 +50,82 @@ def normalize_row(row: dict, rev: dict[str, str]) -> dict:
         key = key.strip()
         value = (value or "").strip()
         raw[key] = value
-        canonical = rev.get(key)
-        if canonical and value and not item.get(canonical):
-            item[canonical] = value
+        正規化名 = rev.get(key)
+        if 正規化名 and value and not item.get(正規化名):
+            item[正規化名] = value
 
-    item["price_man"] = c.parse_price_man(item.get("price"))
-    item["walk_min"] = c.parse_number(item.get("walk_minutes"))
-    item["land_sqm"] = c.parse_number(item.get("land_area"))
-    item["building_sqm"] = c.parse_number(item.get("building_area"))
-    item["built_year"] = c.parse_built_year(item.get("built_date"))
+    # 成約データは「成約価格」を価格として扱う
+    価格元 = item.get("成約価格") if dataset == "成約" and item.get("成約価格") else item.get("価格")
+    item["価格万円"] = c.parse_price_man(価格元)
+    item["徒歩分"] = c.parse_number(item.get("徒歩"))
+    item["土地面積㎡"] = c.parse_number(item.get("土地面積"))
+    item["建物面積㎡"] = c.parse_number(item.get("建物面積"))
+    item["築年"] = c.parse_built_year(item.get("築年月"))
     item["_raw"] = raw
     return item
 
 
-def make_id(item: dict) -> str:
-    pid = item.get("property_id")
-    if pid:
-        return str(pid)
+def 物件キー(item: dict) -> str:
+    番号 = item.get("物件番号")
+    if 番号:
+        return str(番号)
     seed = "|".join(
         str(item.get(k) or "")
-        for k in ("address", "property_type", "land_area", "building_area", "layout", "built_date")
+        for k in ("所在地", "物件種目", "土地面積", "建物面積", "間取り", "築年月")
     )
     return "hash:" + hashlib.sha1(seed.encode("utf-8")).hexdigest()[:16]
 
 
-def load_csv(path: Path, rev: dict[str, str], candidates: set[str]) -> tuple[list[dict], str]:
+def CSVを読む(path: Path, rev: dict[str, str], candidates: set[str], dataset: str):
     text, encoding = c.read_text_any_encoding(path)
-    skip = find_header_row(text, candidates)
+    skip = 見出し行を探す(text, candidates)
     body = "\n".join(text.splitlines()[skip:])
     reader = csv.DictReader(io.StringIO(body))
-    return [normalize_row(row, rev) for row in reader], encoding
+    return [行を正規化(row, rev, dataset) for row in reader], encoding
+
+
+def 対象ファイル(dataset: str) -> list[Path]:
+    files = sorted((c.EXPORT_DIR / dataset).glob("*.csv"))
+    if dataset == "売出":
+        files += sorted(c.EXPORT_DIR.glob("*.csv"))  # フォルダ分けしていない置き方も拾う
+    return files
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--date", default=c.today_str(), help="スナップショットの日付 (既定: 今日)")
+    parser.add_argument("--日付", dest="日付", default=c.today_str(), help="スナップショットの日付（既定: 今日）")
     args = parser.parse_args()
 
-    mapping = c.load_field_mapping()
-    rev = build_reverse_map(mapping)
+    rev = 逆引き表を作る(c.load_field_mapping())
     candidates = set(rev)
 
-    files = sorted(p for p in c.EXPORT_DIR.glob("*.csv"))
-    if not files:
-        print(f"[normalize] {c.EXPORT_DIR} にCSVがありません。レインズのエクスポートを置いてから実行してください。")
+    データ = {}
+    合計 = 0
+    for dataset in c.DATASETS:
+        files = 対象ファイル(dataset)
+        物件: dict[str, dict] = {}
+        取り込み元 = []
+        for path in files:
+            rows, encoding = CSVを読む(path, rev, candidates, dataset)
+            for item in rows:
+                if not any(item.get(k) for k in ("物件番号", "所在地", "価格", "成約価格")):
+                    continue  # 空行・合計行などを捨てる
+                item["_取り込み元"] = path.name
+                物件[物件キー(item)] = item
+            取り込み元.append({"ファイル": path.name, "文字コード": encoding, "行数": len(rows)})
+            print(f"[正規化] {dataset}: {path.name} … {len(rows)}行 ({encoding})")
+        データ[dataset] = {"件数": len(物件), "取り込み元": 取り込み元, "物件": 物件}
+        合計 += len(物件)
+
+    if 合計 == 0:
+        print(f"[正規化] CSVが見つかりません。{c.EXPORT_DIR.relative_to(c.ROOT)}/売出/ "
+              f"または /成約/ にレインズのエクスポートを置いてから実行してください。")
         return 2
 
-    items: dict[str, dict] = {}
-    sources = []
-    for path in files:
-        rows, encoding = load_csv(path, rev, candidates)
-        for item in rows:
-            if not any(item.get(k) for k in ("property_id", "address", "price")):
-                continue  # 空行・合計行などを捨てる
-            item["_source_file"] = path.name
-            items[make_id(item)] = item
-        sources.append({"file": path.name, "encoding": encoding, "rows": len(rows)})
-        print(f"[normalize] {path.name}: {len(rows)}行 ({encoding})")
-
-    snapshot = {"date": args.date, "sources": sources, "count": len(items), "items": items}
-    out = c.SNAPSHOT_DIR / f"{args.date}.json"
-    c.save_json(out, snapshot)
-    print(f"[normalize] {len(items)}件 -> {out.relative_to(c.ROOT)}")
+    out = c.SNAPSHOT_DIR / f"{args.日付}.json"
+    c.save_json(out, {"日付": args.日付, "データ": データ})
+    内訳 = " / ".join(f"{k} {v['件数']}件" for k, v in データ.items())
+    print(f"[正規化] {内訳} -> {out.relative_to(c.ROOT)}")
     return 0
 
 

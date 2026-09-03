@@ -14,11 +14,17 @@ SNAPSHOT_DIR = DATA_DIR / "snapshots"
 REPORT_DIR = DATA_DIR / "reports"
 PUBLIC_DIR = DATA_DIR / "public"
 
+# レインズの検索は「売出（販売中）」と「成約」で画面が分かれているので、
+# エクスポート先フォルダもそれに合わせて分ける。
+DATASETS = ("売出", "成約")
+
 # レインズCSVでよく使われるエンコーディング（Windows出力はほぼ cp932）
 ENCODINGS = ("cp932", "utf-8-sig", "utf-8", "euc_jp")
 
 
-def load_json(path: Path) -> dict:
+# ---------------------------------------------------------------- 入出力
+
+def load_json(path: Path):
     with path.open(encoding="utf-8") as f:
         return json.load(f)
 
@@ -29,8 +35,8 @@ def save_json(path: Path, obj) -> None:
         json.dump(obj, f, ensure_ascii=False, indent=2)
 
 
-def load_criteria() -> dict:
-    return load_json(CONFIG_DIR / "search_criteria.json")
+def load_config() -> dict:
+    return load_json(CONFIG_DIR / "watchlists.json")
 
 
 def load_field_mapping() -> dict:
@@ -46,8 +52,19 @@ def read_text_any_encoding(path: Path) -> tuple[str, str]:
             return raw.decode(enc), enc
         except UnicodeDecodeError:
             continue
-    return raw.decode("cp932", errors="replace"), "cp932(replace)"
+    return raw.decode("cp932", errors="replace"), "cp932(置換あり)"
 
+
+def today_str() -> str:
+    return date.today().isoformat()
+
+
+def latest_snapshots(limit: int = 2) -> list[Path]:
+    """新しい順にスナップショットを返す。"""
+    return sorted(SNAPSHOT_DIR.glob("*.json"), reverse=True)[:limit]
+
+
+# ---------------------------------------------------------------- 値の正規化
 
 _NUM_RE = re.compile(r"-?[\d,]+(?:\.\d+)?")
 
@@ -87,6 +104,17 @@ def parse_price_man(value) -> float | None:
     return oku + n
 
 
+def 金額表示(万円: float | None) -> str:
+    """万円単位の数値を『3億2,000万円』のように読みやすく整形する。"""
+    if not 万円:
+        return "―"
+    if 万円 >= 10000:
+        億 = int(万円 // 10000)
+        残り = 万円 - 億 * 10000
+        return f"{億}億{残り:,.0f}万円" if 残り else f"{億}億円"
+    return f"{万円:,.0f}万円"
+
+
 def parse_number(value) -> float | None:
     if value is None:
         return None
@@ -94,7 +122,7 @@ def parse_number(value) -> float | None:
 
 
 def parse_built_year(value) -> int | None:
-    """築年月から西暦の年を取り出す。和暦（令和/平成/昭和）にも対応。"""
+    """築年月から西暦の年を取り出す。和暦（令和・平成・昭和）にも対応。"""
     if value is None:
         return None
     s = str(value).strip()
@@ -112,63 +140,93 @@ def parse_built_year(value) -> int | None:
     return n if 1900 <= n <= 2100 else None
 
 
-def today_str() -> str:
-    return date.today().isoformat()
+# ---------------------------------------------------------------- 監視リスト
+
+def _rule_matches(rule, text: str) -> bool:
+    """rule が文字列なら単独一致、配列ならすべて含む(AND)。"""
+    if isinstance(rule, (list, tuple)):
+        return all(str(term) in text for term in rule)
+    return str(rule) in text
 
 
-def latest_snapshots(limit: int = 2) -> list[Path]:
-    """新しい順にスナップショットを返す。"""
-    return sorted(SNAPSHOT_DIR.glob("*.json"), reverse=True)[:limit]
+def resolve_watchlists(config: dict | None = None) -> list[dict]:
+    """設定ファイルの日本語キーを、扱いやすい形に展開する。"""
+    config = config or load_config()
+    groups = config.get("エリアグループ") or {}
+    resolved = []
+
+    for wl in config.get("監視リスト") or []:
+        if not wl.get("有効", True):
+            continue
+        group = groups.get(wl.get("エリアグループ")) or {}
+        resolved.append({
+            "id": wl.get("id") or wl.get("名称"),
+            "名称": wl.get("名称", ""),
+            "エリア名": group.get("名称", wl.get("エリアグループ", "")),
+            "対象データ": tuple(wl.get("対象データ") or ["売出"]),
+            "含むエリア": group.get("含む") or [],
+            "除外エリア": group.get("除外") or [],
+            "物件種目": wl.get("物件種目") or [],
+            "価格下限": wl.get("価格下限"),
+            "価格上限": wl.get("価格上限"),
+            "土地面積下限": wl.get("土地面積下限"),
+            "建物面積下限": wl.get("建物面積下限"),
+            "駅徒歩上限": wl.get("駅徒歩上限"),
+            "築年下限": wl.get("築年下限"),
+            "含むキーワード": wl.get("含むキーワード") or [],
+            "除くキーワード": wl.get("除くキーワード") or [],
+        })
+    return resolved
 
 
 def _haystack(item: dict) -> str:
-    parts = [str(v) for k, v in item.items() if k != "_raw" and v is not None]
+    parts = [str(v) for k, v in item.items() if not k.startswith("_") and v is not None]
     parts += [str(v) for v in (item.get("_raw") or {}).values()]
     return " ".join(parts)
 
 
-def matches_criteria(item: dict, cr: dict) -> bool:
-    """config/search_criteria.json の条件に合う物件かどうか。null/空の条件は無視する。"""
-    location = " ".join(str(item.get(k) or "") for k in ("address", "line", "station"))
+def matches(item: dict, wl: dict) -> bool:
+    """物件が監視リストの条件に合うか。未設定(null/空)の条件は無視する。"""
+    location = " ".join(str(item.get(k) or "") for k in ("所在地", "沿線", "駅"))
 
-    areas = cr.get("areas") or []
-    if areas and not any(a in location for a in areas):
+    include = wl.get("含むエリア") or []
+    if include and not any(_rule_matches(r, location) for r in include):
         return False
-    if any(a in location for a in (cr.get("area_exclude") or [])):
+    if any(_rule_matches(r, location) for r in (wl.get("除外エリア") or [])):
         return False
 
-    types = cr.get("property_types") or []
+    types = wl.get("物件種目") or []
     if types:
-        ptype = str(item.get("property_type") or "")
+        ptype = str(item.get("物件種目") or "")
         if not any(t in ptype for t in types):
             return False
 
-    price = item.get("price_man")
-    if cr.get("price_min_man") is not None and (price is None or price < cr["price_min_man"]):
+    price = item.get("価格万円")
+    if wl.get("価格下限") is not None and (price is None or price < wl["価格下限"]):
         return False
-    if cr.get("price_max_man") is not None and (price is None or price > cr["price_max_man"]):
+    if wl.get("価格上限") is not None and (price is None or price > wl["価格上限"]):
         return False
 
     for key, field in (
-        ("land_area_min_sqm", "land_sqm"),
-        ("building_area_min_sqm", "building_sqm"),
-        ("built_year_min", "built_year"),
+        ("土地面積下限", "土地面積㎡"),
+        ("建物面積下限", "建物面積㎡"),
+        ("築年下限", "築年"),
     ):
-        if cr.get(key) is not None:
+        if wl.get(key) is not None:
             value = item.get(field)
-            if value is None or value < cr[key]:
+            if value is None or value < wl[key]:
                 return False
 
-    if cr.get("walk_minutes_max") is not None:
-        walk = item.get("walk_min")
-        if walk is None or walk > cr["walk_minutes_max"]:
+    if wl.get("駅徒歩上限") is not None:
+        walk = item.get("徒歩分")
+        if walk is None or walk > wl["駅徒歩上限"]:
             return False
 
     hay = _haystack(item)
-    any_kw = cr.get("keywords_any") or []
+    any_kw = wl.get("含むキーワード") or []
     if any_kw and not any(k in hay for k in any_kw):
         return False
-    if any(k in hay for k in (cr.get("keywords_none") or [])):
+    if any(k in hay for k in (wl.get("除くキーワード") or [])):
         return False
 
     return True

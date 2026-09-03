@@ -1,7 +1,13 @@
 # レインズのエクスポート実データは絶対にコミットしない（会員規約・個人情報保護のため）
 data/reins_export/*
-!data/reins_export/.gitkeep
 !data/reins_export/README.md
+!data/reins_export/売出/
+!data/reins_export/成約/
+data/reins_export/売出/*
+data/reins_export/成約/*
+!data/reins_export/売出/.gitkeep
+!data/reins_export/成約/.gitkeep
+
 data/snapshots/*
 !data/snapshots/.gitkeep
 data/reports/*

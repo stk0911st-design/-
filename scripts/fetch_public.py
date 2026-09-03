@@ -4,7 +4,7 @@
     REINFOLIB_API_KEY=xxxx python3 scripts/fetch_public.py
 
 ・レインズとは別系統の、誰でも正規に使える公開データ。APIキーは国交省サイトで申請して取得する。
-・APIキーが未設定のときは何もせずスキップする（毎日の処理は止めない）。
+・APIキーが未設定のときは何もせずスキップする（毎日の処理を止めない）。
 ・取得した生データは data/public/ にキャッシュし、同じ四半期は再取得しない。
 """
 from __future__ import annotations
@@ -27,104 +27,101 @@ API_URL = "https://www.reinfolib.mlit.go.jp/ex-api/external/XIT001"
 CA_BUNDLE = Path("/root/.ccr/ca-bundle.crt")
 
 
-def ssl_context() -> ssl.SSLContext:
+def SSL設定() -> ssl.SSLContext:
     if CA_BUNDLE.exists():
         return ssl.create_default_context(cafile=str(CA_BUNDLE))
     return ssl.create_default_context()
 
 
-def recent_quarters(n: int) -> list[tuple[int, int]]:
+def 直近の四半期(n: int) -> list[tuple[int, int]]:
     """直近n四半期を新しい順に返す。公表が数ヶ月遅れるので1つ前の四半期から数える。"""
-    today = date.today()
-    year, quarter = today.year, (today.month - 1) // 3 + 1
+    今日 = date.today()
+    年, 四半期 = 今日.year, (今日.month - 1) // 3 + 1
     out = []
     for _ in range(n):
-        quarter -= 1
-        if quarter == 0:
-            year, quarter = year - 1, 4
-        out.append((year, quarter))
+        四半期 -= 1
+        if 四半期 == 0:
+            年, 四半期 = 年 - 1, 4
+        out.append((年, 四半期))
     return out
 
 
-def fetch_quarter(year: int, quarter: int, area: str, city: str | None, api_key: str) -> list[dict]:
-    params = {"year": str(year), "quarter": str(quarter), "area": area}
-    if city:
-        params["city"] = city
+def 四半期を取得(年: int, 四半期: int, 都道府県: str, api_key: str) -> list[dict]:
+    params = {"year": str(年), "quarter": str(四半期), "area": 都道府県}
     req = urllib.request.Request(
         f"{API_URL}?{urllib.parse.urlencode(params)}",
         headers={"Ocp-Apim-Subscription-Key": api_key},
     )
-    with urllib.request.urlopen(req, timeout=60, context=ssl_context()) as res:
+    with urllib.request.urlopen(req, timeout=60, context=SSL設定()) as res:
         payload = json.loads(res.read().decode("utf-8"))
     return payload.get("data", [])
 
 
-def summarize(records: list[dict]) -> dict:
+def 集計(records: list[dict]) -> dict:
     """市区町村ごとに件数・取引価格の中央値・㎡単価の中央値を出す。"""
     buckets: dict[str, list[tuple[float, float | None]]] = {}
     for r in records:
-        price = c.parse_number(r.get("TradePrice"))
-        if not price:
+        価格 = c.parse_number(r.get("TradePrice"))
+        if not 価格:
             continue
-        area = c.parse_number(r.get("Area"))
-        unit = price / area if area else None
-        key = f"{r.get('Prefecture','')}{r.get('Municipality','')}"
-        buckets.setdefault(key, []).append((price, unit))
+        面積 = c.parse_number(r.get("Area"))
+        単価 = 価格 / 面積 if 面積 else None
+        キー = f"{r.get('Prefecture','')}{r.get('Municipality','')}"
+        buckets.setdefault(キー, []).append((価格, 単価))
 
-    summary = {}
-    for key, values in sorted(buckets.items()):
-        prices = [p for p, _ in values]
-        units = [u for _, u in values if u]
-        summary[key] = {
-            "count": len(prices),
-            "median_price_yen": int(statistics.median(prices)),
-            "median_unit_price_yen_per_sqm": int(statistics.median(units)) if units else None,
+    out = {}
+    for キー, values in sorted(buckets.items()):
+        価格一覧 = [p for p, _ in values]
+        単価一覧 = [u for _, u in values if u]
+        out[キー] = {
+            "件数": len(価格一覧),
+            "取引価格の中央値": int(statistics.median(価格一覧)),
+            "㎡単価の中央値": int(statistics.median(単価一覧)) if 単価一覧 else None,
         }
-    return summary
+    return out
 
 
 def main() -> int:
-    cr = c.load_criteria()
-    conf = cr.get("public_data") or {}
-    if not conf.get("enabled", True):
-        print("[public] public_data.enabled が false のためスキップします。")
+    設定 = c.load_config().get("公開データ") or {}
+    if not 設定.get("有効", True):
+        print("[公開データ] 設定が無効になっているためスキップします。")
         return 0
 
     api_key = os.environ.get("REINFOLIB_API_KEY", "").strip()
     if not api_key:
-        print("[public] REINFOLIB_API_KEY が未設定のためスキップします。"
+        print("[公開データ] REINFOLIB_API_KEY が未設定のためスキップします。"
               "（国土交通省『不動産情報ライブラリ』でAPIキーを申請し、環境変数に設定してください）")
         return 0
 
-    area = str(conf.get("prefecture_code") or "13")
-    cities = conf.get("city_codes") or [None]
-    records: list[dict] = []
+    コード = 設定.get("都道府県コード") or ["13"]
+    if isinstance(コード, str):
+        コード = [コード]
 
-    for year, quarter in recent_quarters(int(conf.get("quarters_back") or 4)):
-        for city in cities:
-            tag = f"{area}{'-' + city if city else ''}_{year}Q{quarter}"
-            cache = c.PUBLIC_DIR / f"mlit_{tag}.json"
+    records: list[dict] = []
+    for 都道府県 in コード:
+        for 年, 四半期 in 直近の四半期(int(設定.get("遡る四半期数") or 4)):
+            タグ = f"{都道府県}_{年}Q{四半期}"
+            cache = c.PUBLIC_DIR / f"mlit_{タグ}.json"
             if cache.exists():
                 data = c.load_json(cache)
             else:
                 try:
-                    data = fetch_quarter(year, quarter, area, city, api_key)
+                    data = 四半期を取得(年, 四半期, 都道府県, api_key)
                 except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError) as e:
-                    print(f"[public] {tag} の取得に失敗: {e}")
+                    print(f"[公開データ] {タグ} の取得に失敗: {e}")
                     continue
                 c.save_json(cache, data)
-                print(f"[public] {tag}: {len(data)}件を取得")
+                print(f"[公開データ] {タグ}: {len(data)}件を取得")
             records.extend(data)
 
     if not records:
-        print("[public] 取得できたレコードがありませんでした。")
+        print("[公開データ] 取得できたレコードがありませんでした。")
         return 0
 
-    summary = {"generated_at": c.today_str(), "record_count": len(records),
-               "by_municipality": summarize(records)}
-    out = c.PUBLIC_DIR / "market_summary.json"
-    c.save_json(out, summary)
-    print(f"[public] {len(records)}件を集計 -> {out.relative_to(c.ROOT)}")
+    out = c.PUBLIC_DIR / "相場サマリー.json"
+    c.save_json(out, {"作成日": c.today_str(), "レコード数": len(records),
+                      "市区町村別": 集計(records)})
+    print(f"[公開データ] {len(records)}件を集計 -> {out.relative_to(c.ROOT)}")
     return 0
 
 
