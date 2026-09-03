@@ -57,17 +57,29 @@ var MT_KEYWORDS = {
 };
 
 /**
- * 配信系・通知系の送信元。ここに載る送信元は原則「対象外」。
+ * 無条件で対象外にする送信元（一斉配信・システム通知）。
  *
  * backlog.com を含めているのは意図的。Backlog の通知メールに返信するとその課題に
  * コメントが投稿されるため、自動で返信下書きを作ると誤投稿の危険がある。
  * Backlog の内容は Backlog 上で確認する前提とする。
  */
-var MT_NOISE_SENDER_DEFAULT = [
+var MT_BLOCK_SENDERS = [
   'indeedemail.com', 'facebookmail.com', 'e.suumo.jp', 'mail.yahoo.co.jp',
-  'bmsend.com', 'moneyforward.com', 'clients.bmsend.com', 'camp-fire.jp',
+  'bmsend.com', 'moneyforward.com', 'camp-fire.jp',
   'backlog.com', 'backlog.jp',
-  'noreply', 'no-reply', 'donotreply', 'mailer-daemon', 'postmaster'
+  'mailer-daemon', 'postmaster'
+];
+
+/**
+ * 送信専用アドレスの手がかり。
+ *
+ * 一律に除外してはいけない。取引先が業務システム経由で送ってくる重要書類
+ * （重要事項調査報告書・管理規約の送付通知など）も送信専用アドレスから届くため、
+ * 案件語が2つ以上あるか至急語を含む場合は対象として残す。
+ * ただし返信しても届かないので、返信下書きは作らず、本文中の担当者アドレスを拾って報告する。
+ */
+var MT_NOREPLY_PATTERNS = [
+  'noreply', 'no-reply', 'no_reply', 'donotreply', 'do-not-reply', 'do_not_reply'
 ];
 
 /** 件名がこれらに当たり、かつ案件性が無ければ「対象外」。 */
@@ -160,7 +172,7 @@ function mtConfig_() {
     createEvents: bool('CREATE_EVENTS', true),
     dryRun: bool('DRY_RUN', true),
     logSpreadsheetId: str('LOG_SPREADSHEET_ID', ''),
-    noiseSenders: MT_NOISE_SENDER_DEFAULT.concat(list('NOISE_SENDERS')),
+    blockSenders: MT_BLOCK_SENDERS.concat(list('NOISE_SENDERS')),
     backlog: {
       spaceUrl: str('BACKLOG_SPACE_URL', '').replace(/\/+$/, ''),
       apiKey: str('BACKLOG_API_KEY', ''),
@@ -249,7 +261,7 @@ function runTriage_(isDryRun) {
     }
 
     // 2. 返信下書き
-    if (cfg.replyDraft && item.needsAction && !hasDraftOnThread_(thread)) {
+    if (cfg.replyDraft && item.needsAction && !item.noReply && !hasDraftOnThread_(thread)) {
       lines.push('  返信下書き: 作成');
       if (!isDryRun) {
         thread.createDraftReply(buildReplyBody_(cfg, item));
@@ -341,6 +353,8 @@ function analyzeMessage_(message, thread, cfg) {
     hits: {},
     needsAction: false,
     isImportant: false,
+    noReply: false,
+    contactEmail: '',
     isUrgent: false,
     schedule: [],
     amounts: [],
@@ -355,21 +369,35 @@ function analyzeMessage_(message, thread, cfg) {
     item.reasons.push('自動応答・不在通知');
     return item;
   }
-  if (isNoiseSender_(fromAddress, cfg)) {
+  if (isBlockedSender_(fromAddress, cfg)) {
     item.verdict = '対象外';
-    item.reasons.push('配信・通知系の送信元');
+    item.reasons.push('一斉配信・システム通知の送信元');
     return item;
   }
+
+  item.noReply = isNoReplySender_(fromAddress);
 
   item.hits.urgent = collectHits_(haystack, MT_KEYWORDS.urgent);
   item.hits.action = collectHits_(haystack, MT_KEYWORDS.action);
   item.hits.deal = collectHits_(haystack, MT_KEYWORDS.deal);
   item.hits.schedule = collectHits_(haystack, MT_KEYWORDS.schedule);
 
-  if (matchAny_(subject, MT_NOISE_SUBJECT) && item.hits.deal.length < 2 && item.hits.urgent.length === 0) {
+  var hasSubstance = item.hits.deal.length >= 2 || item.hits.urgent.length > 0;
+
+  if (matchAny_(subject, MT_NOISE_SUBJECT) && !hasSubstance) {
     item.verdict = '対象外';
     item.reasons.push('営業DM・案内メール（案件性なし）');
     return item;
+  }
+  if (item.noReply && !hasSubstance) {
+    item.verdict = '対象外';
+    item.reasons.push('送信専用アドレスからの通知（案件性なし）');
+    return item;
+  }
+  if (item.noReply) {
+    // 返信しても届かないため、本文の署名から担当者のアドレスを拾っておく
+    item.contactEmail = extractContactEmail_(body, fromAddress);
+    item.reasons.push('送信専用アドレス（返信不可）');
   }
 
   item.needsAction = item.hits.action.length > 0;
@@ -394,11 +422,34 @@ function analyzeMessage_(message, thread, cfg) {
   return item;
 }
 
-function isNoiseSender_(address, cfg) {
+function isBlockedSender_(address, cfg) {
   var lower = String(address).toLowerCase();
-  return cfg.noiseSenders.some(function (n) {
+  return cfg.blockSenders.some(function (n) {
     return n && lower.indexOf(n) !== -1;
   });
+}
+
+function isNoReplySender_(address) {
+  var lower = String(address).toLowerCase();
+  return MT_NOREPLY_PATTERNS.some(function (n) {
+    return lower.indexOf(n) !== -1;
+  });
+}
+
+/** 送信専用アドレスのメールから、署名などに書かれた担当者のアドレスを拾う。 */
+function extractContactEmail_(body, fromAddress) {
+  var re = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
+  var from = String(fromAddress).toLowerCase();
+  var match;
+  while ((match = re.exec(String(body))) !== null) {
+    var addr = match[0];
+    var lower = addr.toLowerCase();
+    if (lower === from) { continue; }
+    if (isNoReplySender_(lower)) { continue; }
+    if (/\.(png|jpg|jpeg|gif)$/i.test(lower)) { continue; }
+    return addr;
+  }
+  return '';
 }
 
 // ---------------------------------------------------------------------------
@@ -625,6 +676,7 @@ function buildEscalationHtml_(item) {
   out.push(row_('差出人', item.from));
   out.push(row_('受信', item.dateLabel));
   out.push(row_('判定理由', item.reasons.join('、')));
+  if (item.contactEmail) { out.push(row_('担当者の連絡先', item.contactEmail + '（差出人は送信専用アドレス）')); }
   if (item.deadline) { out.push(row_('期限', item.deadline)); }
   if (item.amounts.length) { out.push(row_('金額', item.amounts.join(' / '))); }
   if (item.schedule.length) {

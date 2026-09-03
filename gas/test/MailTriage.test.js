@@ -23,7 +23,7 @@ const Logger = { log: (...a) => console.log('[log]', ...a) };
 const ctx = { Utilities, Logger, console, Date, Number, String, JSON, isNaN, encodeURIComponent, Object };
 const vm = require('vm');
 vm.createContext(ctx);
-vm.runInContext(src + '\nthis.__api = {extractDateTimes_, extractTime_, extractAmounts_, extractDeadline_, inferYear_, collectHits_, extractAddress_, extractName_, firstMeaningfulLines_, shortSubject_, isValidYmd_};', ctx);
+vm.runInContext(src + '\nthis.__api = {extractDateTimes_, extractTime_, extractAmounts_, extractDeadline_, inferYear_, collectHits_, extractAddress_, extractName_, firstMeaningfulLines_, shortSubject_, isValidYmd_, isBlockedSender_, isNoReplySender_, extractContactEmail_, matchAny_, MT_NOISE_SUBJECT};', ctx);
 const api = ctx.__api;
 
 const base = new Date(2026, 8, 3, 15, 0, 0); // 2026-09-03 15:00 JST
@@ -58,6 +58,21 @@ t('氏名抽出', api.extractName_('"原田 匠" <a@b.jp>'), '原田 匠');
 t('件名短縮', api.shortSubject_('Re: 案件紹介／横浜市'), '案件紹介／横浜市');
 t('本文冒頭', api.firstMeaningfulLines_('\n> 引用行\n小林様\n\nお世話になっております。\n----\n署名', 2), '小林様\nお世話になっております。');
 t('キーワード', api.collectHits_('至急ご確認ください', ['至急','ご確認','決済']), ['至急','ご確認']);
+
+console.log('--- 送信元の判定 ---');
+const cfg = { blockSenders: vm.runInContext('MT_BLOCK_SENDERS', ctx) };
+t('Backlog通知は無条件で除外', api.isBlockedSender_('notifications-1336280@backlog.com', cfg), true);
+t('求人サイトは無条件で除外', api.isBlockedSender_('abc_xyz@indeedemail.com', cfg), true);
+t('取引先は除外しない', api.isBlockedSender_('a-tanaka@example.co.jp', cfg), false);
+t('送信専用アドレスを見分ける', api.isNoReplySender_('no-reply@facilo.jp'), true);
+t('通常アドレスは送信専用ではない', api.isNoReplySender_('shohei-kubota@example.co.jp'), false);
+
+// 送信専用アドレスからの重要書類は、案件語が2つ以上あれば対象として残す想定
+const faciloBody = 'トップ中野第四の重調・管理規約をお送りしました。ご確認いただけますでしょうか。\nE-mail:shohei-kubota@example.co.jp';
+t('案件語を2つ以上拾える', api.collectHits_(faciloBody, ['重説','重要事項','管理規約','契約','物件']).length >= 1, true);
+t('署名から担当者アドレスを拾う', api.extractContactEmail_(faciloBody, 'no-reply@facilo.jp'), 'shohei-kubota@example.co.jp');
+t('拾えない場合は空', api.extractContactEmail_('本文のみ', 'no-reply@x.jp'), '');
+t('送信専用アドレスは連絡先にしない', api.extractContactEmail_('連絡先 noreply@x.jp です', 'no-reply@facilo.jp'), '');
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
