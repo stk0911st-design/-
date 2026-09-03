@@ -3,18 +3,21 @@
   "company_name": "株式会社スマートハウス",
   "fiscal_year_start_month": null,
   "_fiscal_year_start_month_note": "決算期の開始月(1-12)。不明なため null。分かったら設定してください。",
-
   "deal_criteria": {
-    "gross_margin_rate_min": 0.10,
+    "gross_margin_rate_min": 0.1,
     "gross_margin_rate_target": 0.15,
     "recovery_months_max": 10,
     "loan_interest_rate_annual": 0.04,
-    "_note": "粗利率10%を最低ライン、15%を目標、回収期間10か月以内、借入金利は年4%を試算基準とする"
+    "gross_margin_rate_basis": "purchase_price",
+    "_gross_margin_rate_basis_note": "粗利率の分母。\"purchase_price\"＝仕入価格ベース（当社の定義）。\"sale_price\" にすると売却価格ベースになる。粗利率 = 想定粗利 ÷ 仕入価格",
+    "_note": "粗利率10%を最低ライン、15%を目標、回収期間10か月以内、借入金利は年4%を試算基準とする。粗利率の分母は仕入価格。"
   },
-
-  "inventory_alert_days": [90, 120, 180],
+  "inventory_alert_days": [
+    90,
+    120,
+    180
+  ],
   "_inventory_alert_days_note": "在庫保有日数の警告しきい値（日）",
-
   "sales_kpi_items": [
     "架電",
     "メール",
@@ -26,7 +29,6 @@
     "契約"
   ],
   "_sales_kpi_items_note": "社内の日報カウンターに合わせた営業KPI標準項目",
-
   "cost_items_to_consider": [
     "不動産取得税",
     "登録免許税",
@@ -42,7 +44,6 @@
     "支払金利",
     "その他保有コスト"
   ],
-
   "monthly_targets": {
     "_note": "月次目標。未設定のため null。設定すると達成率が計算されます。数字を勝手に作らないため空のままでも構いません。",
     "sales": null,
