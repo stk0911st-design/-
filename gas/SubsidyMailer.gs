@@ -5,10 +5,12 @@
  * 至急のものを先頭に並べて指定アドレスへ HTML メールで送信する。
  *
  * プロフィール（対象事業者の条件）ごとに送り分ける。
- *   tokyo    … 東京都／従業員6〜20人／不動産業
- *   kanagawa … 神奈川県／従業員5人以下（小規模事業者）
+ *   tokyo    … 東京都／従業員6〜20人／不動産業（毎週）
+ *   kanagawa … 神奈川県／従業員5人以下（小規模事業者）（隔週）
  *
  * 想定トリガー: 時間主導型 / 週ベース / 毎週木曜 午前9時〜10時
+ *   ※ Apps Script の時間主導型トリガーは「毎週」までしか設定できないため、
+ *     隔週配信はトリガーを毎週にしたうえで、関数側で送信する週かどうかを判定する。
  *
  * スクリプトプロパティ:
  *   SENDER              差出人アドレス（必須・Gmailのエイリアスに登録済みであること）
@@ -16,6 +18,7 @@
  *   RECIPIENT_TOKYO     tokyo プロフィールの送信先（カンマ区切り可）
  *   RECIPIENT_KANAGAWA  kanagawa プロフィールの送信先（カンマ区切り可）
  *   CC                  CCアドレス（任意・カンマ区切り）
+ *   ANCHOR_KANAGAWA     kanagawa の隔週配信の基準日 'YYYY-MM-DD'（任意・既定は BIWEEKLY_ANCHOR）
  *
  * ※ 公募情報が変わったら SUBSIDIES を更新すること。
  *    このスクリプトは Web 検索をしないため、内容の鮮度は手入力に依存する。
@@ -25,6 +28,12 @@ var TZ = 'Asia/Tokyo';
 
 /** 残日数がこの日数以下になったら「至急」として先頭に出す。 */
 var URGENT_DAYS = 30;
+
+/**
+ * 隔週配信の既定の基準日（この日を含む週に送信し、以降1週おき）。
+ * 2026-09-10（木）を起点に 9/10 → 9/24 → 10/8 … の隔週で送る。
+ */
+var BIWEEKLY_ANCHOR = '2026-09-10';
 
 /**
  * 補助金・助成金の一覧。
@@ -245,12 +254,15 @@ var PROFILES = {
   tokyo: {
     label: '東京都／従業員6〜20人',
     recipientProp: 'RECIPIENT_TOKYO',
+    everyWeeks: 1,
     greeting: 'おはようございます。今週の補助金・助成金の状況です。',
     excluded: '小規模事業者持続化補助金は「商業・サービス業は従業員5人以下」要件のため対象外です。'
   },
   kanagawa: {
     label: '神奈川県／従業員5人以下（小規模事業者）',
     recipientProp: 'RECIPIENT_KANAGAWA',
+    everyWeeks: 2,
+    anchorProp: 'ANCHOR_KANAGAWA',
     greeting: 'おはようございます。今週の補助金・助成金の状況をお送りします。',
     excluded: ''
   }
@@ -287,18 +299,27 @@ function runProfile_(profileKey, isPreview) {
   }
 
   var today = todayInTz_();
+  var props = PropertiesService.getScriptProperties();
+
+  if (!isPreview && !isSendingWeek_(profile, props, today)) {
+    Logger.log(profile.label + ' は今週が配信週ではないためスキップしました。'
+      + '（' + profile.everyWeeks + '週に1回）');
+    return;
+  }
+
   var items = collectItems_(profileKey, today);
   var subject = buildSubject_(today, items);
   var html = buildHtml_(profile, today, items);
 
   if (isPreview) {
     Logger.log('--- ' + profile.label + ' ---');
+    Logger.log('配信頻度: ' + profile.everyWeeks + '週に1回'
+      + '／今週は' + (isSendingWeek_(profile, props, today) ? '配信週です' : '配信週ではありません'));
     Logger.log('件名: ' + subject);
     Logger.log(htmlToPlainText_(html));
     return;
   }
 
-  var props = PropertiesService.getScriptProperties();
   var recipient = props.getProperty(profile.recipientProp);
   if (!recipient) {
     Logger.log('スクリプトプロパティ ' + profile.recipientProp + ' が未設定のため、'
@@ -324,6 +345,36 @@ function runProfile_(profileKey, isPreview) {
   Logger.log('送信しました: ' + subject + ' → ' + recipient
     + '（' + profile.label + ' / ' + items.all.length + '件'
     + (sender ? ' / 差出人 ' + sender : '') + '）');
+}
+
+/**
+ * 今週がこのプロフィールの配信週かどうかを判定する。
+ * 基準日を含む週から数えて everyWeeks の倍数の週だけ true を返す。
+ * 実行曜日がずれても週単位で安定して判定できるよう、週の始まり（月曜）に正規化する。
+ */
+function isSendingWeek_(profile, props, todayYmd) {
+  var everyWeeks = profile.everyWeeks || 1;
+  if (everyWeeks <= 1) {
+    return true;
+  }
+  var anchor = (profile.anchorProp && props.getProperty(profile.anchorProp)) || BIWEEKLY_ANCHOR;
+  var weeks = daysBetween_(mondayOf_(anchor), mondayOf_(todayYmd)) / 7;
+  return mod_(Math.round(weeks), everyWeeks) === 0;
+}
+
+/** 'YYYY-MM-DD' が属する週の月曜日を 'YYYY-MM-DD' で返す。 */
+function mondayOf_(ymd) {
+  var date = new Date(parseYmd_(ymd));
+  var dow = date.getUTCDay(); // 0=日 ... 6=土
+  var offset = (dow === 0) ? -6 : (1 - dow);
+  date.setUTCDate(date.getUTCDate() + offset);
+  var p = function (n) { return (n < 10 ? '0' : '') + n; };
+  return date.getUTCFullYear() + '-' + p(date.getUTCMonth() + 1) + '-' + p(date.getUTCDate());
+}
+
+/** 負の数でも正の剰余を返す。 */
+function mod_(n, m) {
+  return ((n % m) + m) % m;
 }
 
 /**
