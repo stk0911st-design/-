@@ -6,6 +6,7 @@
 | --- | --- | --- |
 | 営業日報 まとめメール | 日報カウンターの入力を翌営業日の朝にまとめて送信 | 下記 |
 | メール自動仕分け | 代表・役員宛メールの仕分け／予定登録／エスカレーション／返信下書き／記録 | [`docs/mail-triage.md`](docs/mail-triage.md) |
+| 不動産情報 日次件数 | その日届いた不動産情報の件数を毎日21時にメール報告 | [`docs/property-info-count-routine.md`](docs/property-info-count-routine.md) |
 
 ※ スプレッドシートID・宛先アドレス・API キーなどはこのリポジトリには置かず、
 実行環境側（Claude のルーティン設定、または Apps Script のスクリプトプロパティ）で管理します。
@@ -115,3 +116,14 @@ Claude に依存せず動き続けるため、恒久運用にはこちらが確�
 | Backlog / kintone への登録 | API キーの設定が必要です。未設定ならスキップされます |
 
 詳細と対処案は [`docs/mail-triage.md`](docs/mail-triage.md) の「1. 前提として確認した事実」を参照してください。
+
+---
+
+## 不動産情報 日次件数レポート
+
+その日に届いた不動産情報が何件だったかを、毎日 21:00（JST）にメールで報告します。
+「個別紹介（仕入れ候補）／一斉配信／買取募集」の3分類で数え、
+個別紹介については会社・物件・価格の内訳も載せます。
+
+Claude のルーティンとして稼働します。設定と数え方は
+[`docs/property-info-count-routine.md`](docs/property-info-count-routine.md) を参照。
