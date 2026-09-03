@@ -100,6 +100,24 @@ else
 fi
 
 echo ""
+echo "【7-2】入力データの前処理チェック（実際には変換せず、読めるかだけ確認）"
+if [[ -d "$IN" ]]; then
+  PREP_PREVIEW="$(python3 "$BASE_DIR/scripts/lib/prepare_input.py" "$IN" "$TMP_DIR/healthcheck_preview" 2>&1 || true)"
+  echo "$PREP_PREVIEW" | while IFS=$'\t' read -r kind file note; do
+    case "$kind" in
+      EXCEL)   ok "Excel展開: $file $note" ;;
+      CONVERT) ok "文字コード変換: $file（$note）" ;;
+      COPY)    ok "$file（$note）" ;;
+      SKIP)    warn "読み込めません: $file（$note）" ;;
+      SUMMARY) echo "  → $file" ;;
+      WARN)    warn "$file（$note）" ;;
+    esac
+  done
+else
+  echo "  入力ディレクトリがないためスキップ"
+fi
+
+echo ""
 echo "【8】直近の出力"
 for d in daily weekly monthly; do
   LATEST="$(ls -1t "$OUTPUT_DIR/$d"/*.md 2>/dev/null | head -3 || true)"

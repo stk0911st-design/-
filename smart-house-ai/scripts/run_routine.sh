@@ -114,15 +114,40 @@ log "出力先     : ${OUT_PATH#"$BASE_DIR"/}"
 INPUT_ABS="$BASE_DIR/$INPUT_DIR"
 [[ "$INPUT_DIR" = /* ]] && INPUT_ABS="$INPUT_DIR"
 
-INPUT_LIST="$(list_input_files "$INPUT_ABS")"
-INPUT_COUNT="$(echo "$INPUT_LIST" | grep -c '^/' || true)"
-log "入力ファイル数: $INPUT_COUNT"
-if [[ "$INPUT_COUNT" -eq 0 ]]; then
-  log_warn "入力ファイルが見つかりません。レポートは「データなし」中心の内容になります。"
-fi
-
 CHECKSUM_BEFORE="$TMP_DIR/${RUN_ID}_${KEY}_input_before.md5"
 input_checksum "$INPUT_ABS" > "$CHECKSUM_BEFORE"
+
+# ── 前処理（元データは変更しない） ──────────
+# Claude の読み取りツールは UTF-8 テキストしか扱えないため、
+#   Excel(.xlsx) → CSV に展開
+#   Shift_JIS 等 → UTF-8 に変換
+# したコピーを作業用ディレクトリに作り、そちらを読ませます。
+# 入力ディレクトリには一切書き込みません。
+PREPARED_DIR="$TMP_DIR/${RUN_ID}_${KEY}_prepared"
+PREP_LOG="$TMP_DIR/${RUN_ID}_${KEY}_prepare.log"
+log "入力データを前処理しています..."
+if ! python3 "$BASE_DIR/scripts/lib/prepare_input.py" "$INPUT_ABS" "$PREPARED_DIR" > "$PREP_LOG" 2>&1; then
+  log_err "入力データの前処理に失敗しました。詳細: ${PREP_LOG#"$BASE_DIR"/}"
+  cat "$PREP_LOG" >> "$LOG_FILE"
+  exit 1
+fi
+cat "$PREP_LOG" >> "$LOG_FILE"
+# 変換・スキップされたものはログに出す
+while IFS=$'\t' read -r kind file note; do
+  case "$kind" in
+    EXCEL)   log "  Excel展開: $file $note" ;;
+    CONVERT) log "  文字コード変換: $file（$note）" ;;
+    SKIP)    log_warn "  読み込み対象外: $file（$note）" ;;
+    SUMMARY) log "  前処理結果: $file" ;;
+  esac
+done < "$PREP_LOG"
+
+INPUT_LIST="$(list_input_files "$PREPARED_DIR")"
+INPUT_COUNT="$(echo "$INPUT_LIST" | grep -c '^/' || true)"
+log "読み込み可能なファイル数: $INPUT_COUNT"
+if [[ "$INPUT_COUNT" -eq 0 ]]; then
+  log_warn "読み込めるファイルがありません。レポートは「データなし」中心の内容になります。"
+fi
 
 # ── プロンプト組み立て ──────────────────────
 PROMPT_TMP="$TMP_DIR/${RUN_ID}_${KEY}_prompt.md"
@@ -139,18 +164,24 @@ PROMPT_TMP="$TMP_DIR/${RUN_ID}_${KEY}_prompt.md"
   echo "| タイムゾーン | ${TZ} |"
   echo "| ルーティン | ${NAME} |"
   echo "| 作業ディレクトリ | ${BASE_DIR} |"
-  echo "| 入力ディレクトリ | ${INPUT_DIR} |"
+  echo "| 入力ディレクトリ | ${INPUT_DIR}（元データ。読み取り専用） |"
+  echo "| 読み込み先 | ${PREPARED_DIR#"$BASE_DIR"/}（Excel展開・文字コード変換済みのコピー） |"
   echo "| 会社ルール | CLAUDE.md（必ず読むこと） |"
   echo "| 基準値 | config/company.json（必ず読むこと） |"
   echo "| 過去レポート | output/daily, output/weekly, output/monthly |"
   echo ""
-  echo "## 入力ディレクトリにあるファイル（このファイル群だけを読み込み対象にしてください）"
+  echo "## 読み込み対象のファイル（この一覧のファイルだけを読んでください）"
+  echo ""
+  echo "元データ（${INPUT_DIR}）の Excel は CSV に展開し、Shift_JIS 等は UTF-8 に変換した"
+  echo "コピーを下記に用意しています。**レポートでファイル名を引用するときは、"
+  echo "元のファイル名（拡張子や __シート名 の部分を除いた名前）で書いてください。**"
   echo ""
   echo '```'
   echo "$INPUT_LIST"
   echo '```'
   echo ""
   echo "※ 上記以外のファイルを勝手に探しに行かないでください。"
+  echo "※ 前処理で読み込めなかったファイルがある場合はログに記録されています。"
   echo "※ 入力ファイルは読み取りのみ。変更・削除しないでください。"
   echo "※ レポート本文だけを標準出力に書いてください。ファイルの作成・書き込みはしないでください。"
   echo ""
