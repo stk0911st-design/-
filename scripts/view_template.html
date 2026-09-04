@@ -1,0 +1,334 @@
+<title>南万騎が原 マンション台帳</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --ground:#f2f5f6; --surface:#ffffff; --surface-2:#eaeff1;
+  --ink:#14222a; --ink-2:#3d525d; --muted:#6b7d87;
+  --line:#d7e0e4; --line-strong:#b9c7cd;
+  --accent:#2c5f7c; --accent-soft:#e2edf3;
+  --good:#2f7d5f; --good-soft:#e0efe8;
+  --warn:#9a6a12; --warn-soft:#f6ecd8;
+  --gone:#9c4a42; --gone-soft:#f4e3e1;
+  --shadow:0 1px 2px rgba(20,34,42,.06), 0 8px 24px -18px rgba(20,34,42,.5);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#101a1f; --surface:#16232a; --surface-2:#1d2f38;
+    --ink:#e8eff2; --ink-2:#b3c4cc; --muted:#8296a0;
+    --line:#253a44; --line-strong:#365060;
+    --accent:#7fb8d6; --accent-soft:#1b3644;
+    --good:#79c7a4; --good-soft:#173328;
+    --warn:#d9ab5c; --warn-soft:#33280f;
+    --gone:#d98b83; --gone-soft:#38201d;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -18px #000;
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#101a1f; --surface:#16232a; --surface-2:#1d2f38;
+  --ink:#e8eff2; --ink-2:#b3c4cc; --muted:#8296a0;
+  --line:#253a44; --line-strong:#365060;
+  --accent:#7fb8d6; --accent-soft:#1b3644;
+  --good:#79c7a4; --good-soft:#173328;
+  --warn:#d9ab5c; --warn-soft:#33280f;
+  --gone:#d98b83; --gone-soft:#38201d;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -18px #000;
+}
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--ground); color:var(--ink);
+  font-family:"Zen Kaku Gothic New","Hiragino Kaku Gothic ProN","Yu Gothic",system-ui,sans-serif;
+  font-size:14px; line-height:1.65; -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1240px; margin:0 auto; padding:28px 20px 72px; display:flex; flex-direction:column; gap:22px}
+
+/* ---- header ---- */
+.head{display:flex; flex-wrap:wrap; align-items:flex-end; gap:14px 24px; justify-content:space-between;
+      border-bottom:2px solid var(--line-strong); padding-bottom:16px}
+h1{margin:0; font-size:26px; font-weight:700; letter-spacing:.02em; text-wrap:balance}
+.sub{margin:4px 0 0; color:var(--muted); font-size:13px}
+.meta{font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:11.5px; color:var(--muted);
+      text-align:right; line-height:1.8}
+.meta b{color:var(--ink-2); font-weight:500}
+
+.notice{display:flex; gap:10px; align-items:flex-start; padding:11px 14px; border-radius:3px;
+        background:var(--warn-soft); border-left:3px solid var(--warn); color:var(--ink-2); font-size:13px}
+.notice strong{color:var(--warn)}
+
+/* ---- stat strip ---- */
+.stats{display:grid; grid-template-columns:repeat(auto-fit,minmax(146px,1fr)); gap:1px;
+       background:var(--line); border:1px solid var(--line); border-radius:4px; overflow:hidden}
+.stat{background:var(--surface); padding:13px 15px; display:flex; flex-direction:column; gap:3px}
+.stat .k{font-size:11px; color:var(--muted); letter-spacing:.06em}
+.stat .v{font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:22px; font-weight:500;
+         font-variant-numeric:tabular-nums; line-height:1.2}
+.stat .u{font-size:12px; color:var(--muted); font-family:"Zen Kaku Gothic New",sans-serif}
+.stat.is-new .v{color:var(--good)}
+.stat.is-cut .v{color:var(--warn)}
+.stat.is-gone .v{color:var(--gone)}
+
+/* ---- tabs + filter ---- */
+.bar{display:flex; flex-wrap:wrap; gap:12px; align-items:center; justify-content:space-between}
+.tabs{display:flex; gap:2px; background:var(--surface-2); padding:3px; border-radius:4px}
+.tab{appearance:none; border:0; background:transparent; color:var(--ink-2); cursor:pointer;
+     font:inherit; font-size:13px; padding:6px 14px; border-radius:3px; white-space:nowrap}
+.tab:hover{color:var(--ink)}
+.tab[aria-selected="true"]{background:var(--surface); color:var(--accent); font-weight:500; box-shadow:var(--shadow)}
+.tab .n{font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--muted); margin-left:6px}
+input[type="search"]{
+  font:inherit; font-size:13px; padding:7px 11px; min-width:310px; color:var(--ink);
+  background:var(--surface); border:1px solid var(--line-strong); border-radius:3px;
+}
+input[type="search"]::placeholder{color:var(--muted)}
+:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+
+/* ---- table ---- */
+.panel{background:var(--surface); border:1px solid var(--line); border-radius:4px; box-shadow:var(--shadow)}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse; width:100%; font-size:13px}
+th,td{padding:9px 12px; text-align:left; border-bottom:1px solid var(--line); white-space:nowrap}
+thead th{
+  position:sticky; top:0; z-index:1; background:var(--surface-2); color:var(--ink-2);
+  font-size:11px; font-weight:500; letter-spacing:.05em; cursor:pointer; user-select:none;
+  border-bottom:1px solid var(--line-strong);
+}
+thead th:hover{color:var(--accent)}
+thead th::after{content:""; font-family:"IBM Plex Mono",monospace; color:var(--accent); margin-left:5px}
+thead th[data-dir="asc"]::after{content:"▲"; font-size:8px}
+thead th[data-dir="desc"]::after{content:"▼"; font-size:8px}
+tbody tr:hover{background:var(--accent-soft)}
+tbody tr:last-child td{border-bottom:0}
+.num{text-align:right; font-family:"IBM Plex Mono",ui-monospace,monospace; font-variant-numeric:tabular-nums}
+.name{font-weight:500; white-space:normal; min-width:190px}
+.name a{color:inherit}
+.dim{color:var(--muted)}
+.empty{padding:44px 24px; text-align:center; color:var(--muted)}
+.empty code{font-family:"IBM Plex Mono",monospace; background:var(--surface-2); padding:2px 6px; border-radius:3px; color:var(--ink-2)}
+
+.chip{display:inline-block; font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:.04em;
+      padding:2px 7px; border-radius:2px; background:var(--surface-2); color:var(--ink-2)}
+.chip.new{background:var(--good-soft); color:var(--good)}
+.chip.cut{background:var(--warn-soft); color:var(--warn)}
+.chip.gone{background:var(--gone-soft); color:var(--gone)}
+
+/* 掲載週数バー: 長期化しているものが目で分かる */
+.wk{display:flex; align-items:center; gap:7px; justify-content:flex-end}
+.wk .bar{height:3px; width:44px; background:var(--surface-2); border-radius:2px; overflow:hidden; flex:none}
+.wk .bar i{display:block; height:100%; min-width:3px; background:var(--accent)}
+.wk.long .bar i{background:var(--warn)}
+
+footer{color:var(--muted); font-size:12px; border-top:1px solid var(--line); padding-top:14px}
+footer code{font-family:"IBM Plex Mono",monospace}
+@media (prefers-reduced-motion:reduce){*{animation:none!important; transition:none!important}}
+</style>
+
+<div class="wrap">
+  <header class="head">
+    <div>
+      <h1>南万騎が原 マンション台帳</h1>
+      <p class="sub">相鉄いずみ野線 南万騎が原駅 ／ 中古マンション 売り出し・成約事例の週次記録</p>
+    </div>
+    <div class="meta" id="meta"></div>
+  </header>
+
+  <div id="banner"></div>
+
+  <section class="stats" id="stats"></section>
+
+  <div class="bar">
+    <div class="tabs" role="tablist" id="tabs"></div>
+    <input type="search" id="q" placeholder="マンション名・間取り・住所で絞り込む" aria-label="絞り込み">
+  </div>
+
+  <section class="panel"><div class="scroll"><table>
+    <thead><tr id="thead"></tr></thead>
+    <tbody id="tbody"></tbody>
+  </table></section>
+
+  <footer>
+    掲載終了は成約とは限りません（売主都合の取下げ・媒介先の変更を含む）。成約の確定はレインズ等の成約事例で照合してください。<br>
+    更新は <code>python3 scripts/mansion_track.py ingest &lt;週次スナップショット.csv&gt;</code> → <code>view</code>。
+  </footer>
+</div>
+
+<script>
+const DATA = /*__DATA__*/null;
+const D = DATA || {listings:[],events:[],history:[],contracts:[],generated:""};
+
+const n = v => { const x = parseFloat(String(v ?? "").replace(/,/g,"")); return isFinite(x) ? x : null; };
+const money = v => n(v) === null ? "" : n(v).toLocaleString("ja-JP");
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]));
+const med = a => { const s = a.filter(x=>x!==null).sort((x,y)=>x-y); if(!s.length) return null;
+                   const m = s.length>>1; return s.length%2 ? s[m] : (s[m-1]+s[m])/2; };
+
+const active = D.listings.filter(r => r.status === "売出中");
+const closed = D.listings.filter(r => r.status === "掲載終了");
+const lastDate = D.events.length ? D.events[D.events.length-1].event_date : "";
+const wk = D.events.filter(e => e.event_date === lastDate);
+const cnt = t => wk.filter(e => e.event_type === t).length;
+
+document.getElementById("meta").innerHTML =
+  `最終取込 <b>${esc(lastDate || "—")}</b><br>生成 <b>${esc(D.generated)}</b><br>` +
+  `スナップショット由来の累積 <b>${D.listings.length}</b> 件`;
+
+if (!D.listings.length) {
+  document.getElementById("banner").innerHTML =
+    `<div class="notice"><span>⚠</span><div><strong>まだデータがありません。</strong>
+     収集した週次スナップショットCSVを <code>ingest</code> すると、ここに売り出し事例と週ごとの差分が積み上がります。</div></div>`;
+} else if (D.listings.some(r => r.source === "サンプル")) {
+  document.getElementById("banner").innerHTML =
+    `<div class="notice"><span>⚠</span><div><strong>サンプルデータを表示しています。</strong>
+     実在の物件ではありません。実データを ingest すると置き換わります。</div></div>`;
+}
+
+const medPrice = med(active.map(r => n(r.price_current_man)));
+const medTsubo = med(active.map(r => n(r.unit_price_man_tsubo)));
+document.getElementById("stats").innerHTML = [
+  ["売出中", active.length, "件", ""],
+  ["今週の新規掲載", cnt("新規掲載"), "件", "is-new"],
+  ["今週の価格改定", cnt("価格改定"), "件", "is-cut"],
+  ["今週の掲載終了", cnt("掲載終了"), "件", "is-gone"],
+  ["売出価格 中央値", medPrice === null ? "—" : money(medPrice), "万円", ""],
+  ["坪単価 中央値", medTsubo === null ? "—" : medTsubo.toFixed(1), "万円/坪", ""],
+].map(([k,v,u,c]) =>
+  `<div class="stat ${c}"><span class="k">${k}</span><span class="v">${v}</span><span class="u">${u}</span></div>`
+).join("");
+
+const weeksCell = r => {
+  const w = n(r.weeks_on_market) ?? 0;
+  return `<div class="wk ${w >= 26 ? "long" : ""}"><span class="bar"><i style="width:${Math.min(w/52*100,100)}%"></i></span>${w}週</div>`;
+};
+const nameCell = r => r.url
+  ? `<a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.mansion_name)}</a>`
+  : esc(r.mansion_name);
+const cutCell = r => {
+  const c = n(r.price_cut_count) ?? 0;
+  if (!c) return `<span class="dim">—</span>`;
+  const d = (n(r.price_current_man) ?? 0) - (n(r.price_initial_man) ?? 0);
+  return `<span class="chip cut">${c}回 ${d < 0 ? money(d) : ""}</span>`;
+};
+
+const VIEWS = {
+  active: {
+    label: "売出中", rows: active,
+    cols: [
+      ["マンション名", r => nameCell(r), "name"],
+      ["価格", r => money(r.price_current_man) + "<span class='dim'> 万</span>", "num", r => n(r.price_current_man)],
+      ["坪単価", r => r.unit_price_man_tsubo || "", "num", r => n(r.unit_price_man_tsubo)],
+      ["間取り", r => esc(r.layout), ""],
+      ["専有", r => (r.area_m2 || "") + "<span class='dim'> m²</span>", "num", r => n(r.area_m2)],
+      ["階", r => esc(r.floor), ""],
+      ["築年月", r => esc(r.built_ym), ""],
+      ["築年数", r => (r.age_years || "") + "<span class='dim'> 年</span>", "num", r => n(r.age_years)],
+      ["徒歩", r => (r.walk_min || "") + "<span class='dim'> 分</span>", "num", r => n(r.walk_min)],
+      ["掲載週数", weeksCell, "num", r => n(r.weeks_on_market)],
+      ["値下げ", cutCell, "num", r => n(r.price_cut_count)],
+      ["初回確認", r => `<span class="dim">${esc(r.first_seen)}</span>`, ""],
+    ],
+    sort: 9, dir: "desc",
+  },
+  closed: {
+    label: "掲載終了", rows: closed,
+    cols: [
+      ["マンション名", r => nameCell(r), "name"],
+      ["最終価格", r => money(r.price_current_man) + "<span class='dim'> 万</span>", "num", r => n(r.price_current_man)],
+      ["当初価格", r => money(r.price_initial_man) + "<span class='dim'> 万</span>", "num", r => n(r.price_initial_man)],
+      ["値下げ", cutCell, "num", r => n(r.price_cut_count)],
+      ["間取り", r => esc(r.layout), ""],
+      ["専有", r => (r.area_m2 || "") + "<span class='dim'> m²</span>", "num", r => n(r.area_m2)],
+      ["築年月", r => esc(r.built_ym), ""],
+      ["掲載週数", weeksCell, "num", r => n(r.weeks_on_market)],
+      ["掲載開始", r => `<span class="dim">${esc(r.first_seen)}</span>`, ""],
+      ["掲載終了", r => `<span class="dim">${esc(r.closed_date)}</span>`, ""],
+    ],
+    sort: 9, dir: "desc",
+  },
+  contracts: {
+    label: "成約事例", rows: D.contracts,
+    cols: [
+      ["マンション名／地域", r => esc(r.mansion_name || r.area_name), "name"],
+      ["成約時期", r => esc(r.contract_period), ""],
+      ["成約価格", r => money(r.price_man) + "<span class='dim'> 万</span>", "num", r => n(r.price_man)],
+      ["坪単価", r => r.unit_price_man_tsubo || "", "num", r => n(r.unit_price_man_tsubo)],
+      ["間取り", r => esc(r.layout), ""],
+      ["専有", r => (r.area_m2 || "") + "<span class='dim'> m²</span>", "num", r => n(r.area_m2)],
+      ["築年月", r => esc(r.built_ym), ""],
+      ["徒歩", r => (r.walk_min || "") + "<span class='dim'> 分</span>", "num", r => n(r.walk_min)],
+      ["出典", r => `<span class="chip">${esc(r.source)}</span>`, ""],
+    ],
+    sort: 1, dir: "desc",
+  },
+  events: {
+    label: "更新履歴", rows: [...D.events].reverse(),
+    cols: [
+      ["日付", r => `<span class="dim">${esc(r.event_date)}</span>`, ""],
+      ["種別", r => {
+        const c = {"新規掲載":"new","価格改定":"cut","掲載終了":"gone"}[r.event_type] || "";
+        return `<span class="chip ${c}">${esc(r.event_type)}</span>`;
+      }, ""],
+      ["マンション名", r => esc(r.mansion_name), "name"],
+      ["間取り", r => esc(r.layout), ""],
+      ["専有", r => (r.area_m2 || "") + "<span class='dim'> m²</span>", "num", r => n(r.area_m2)],
+      ["内容", r => `<span style="white-space:normal">${esc(r.detail)}</span>`, ""],
+    ],
+    sort: 0, dir: "desc",
+  },
+};
+
+let view = "active", sortIdx = null, sortDir = null, query = "";
+
+document.getElementById("tabs").innerHTML = Object.entries(VIEWS).map(([k, v]) =>
+  `<button class="tab" role="tab" data-v="${k}" aria-selected="${k === view}">${v.label}<span class="n">${v.rows.length}</span></button>`
+).join("");
+
+function render() {
+  const V = VIEWS[view];
+  const si = sortIdx ?? V.sort, sd = sortDir ?? V.dir;
+  document.getElementById("thead").innerHTML = V.cols.map(([h, , cls], i) =>
+    `<th class="${cls === "num" ? "num" : ""}" data-i="${i}" ${i === si ? `data-dir="${sd}"` : ""}>${h}</th>`
+  ).join("");
+
+  let rows = V.rows;
+  if (query) {
+    const q = query.toLowerCase();
+    rows = rows.filter(r => Object.values(r).some(x => String(x ?? "").toLowerCase().includes(q)));
+  }
+  const key = V.cols[si] && V.cols[si][3];
+  rows = [...rows].sort((a, b) => {
+    let x = key ? key(a) : String(Object.values(a)[0]), y = key ? key(b) : String(Object.values(b)[0]);
+    if (!key) { x = a[Object.keys(a)[0]]; y = b[Object.keys(b)[0]]; }
+    if (key) { x = x ?? -Infinity; y = y ?? -Infinity; return sd === "asc" ? x - y : y - x; }
+    const col = V.cols[si][1];
+    x = col(a).replace(/<[^>]*>/g, ""); y = col(b).replace(/<[^>]*>/g, "");
+    return sd === "asc" ? x.localeCompare(y, "ja") : y.localeCompare(x, "ja");
+  });
+
+  const tb = document.getElementById("tbody");
+  tb.innerHTML = rows.length
+    ? rows.map(r => "<tr>" + V.cols.map(([, fn, cls]) =>
+        `<td class="${cls}">${fn(r)}</td>`).join("") + "</tr>").join("")
+    : `<tr><td colspan="${V.cols.length}"><div class="empty">${
+        query ? "該当する物件がありません。" :
+        `この区分のデータはまだありません。<br><code>python3 scripts/mansion_track.py ingest &lt;スナップショット.csv&gt;</code> で追加されます。`
+      }</div></td></tr>`;
+}
+
+document.getElementById("tabs").addEventListener("click", e => {
+  const b = e.target.closest(".tab"); if (!b) return;
+  view = b.dataset.v; sortIdx = sortDir = null;
+  document.querySelectorAll(".tab").forEach(t => t.setAttribute("aria-selected", t === b));
+  render();
+});
+document.getElementById("thead").addEventListener("click", e => {
+  const th = e.target.closest("th"); if (!th) return;
+  const i = +th.dataset.i, V = VIEWS[view];
+  const cur = sortIdx ?? V.sort, dir = sortDir ?? V.dir;
+  sortIdx = i;
+  sortDir = i === cur ? (dir === "asc" ? "desc" : "asc") : (V.cols[i][3] ? "desc" : "asc");
+  render();
+});
+document.getElementById("q").addEventListener("input", e => { query = e.target.value.trim(); render(); });
+
+render();
+</script>

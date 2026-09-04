@@ -1,3 +1,7 @@
 # 生成物のプレビュー（担当者名などの社内情報を含むためコミットしない）
 mail-preview.html
 *.preview.html
+
+# Python
+__pycache__/
+*.pyc

@@ -1,0 +1,4 @@
+source,source_id,url,mansion_name,address,station,walk_min,price_man,layout,area_m2,balcony_m2,floor,floors_total,built_ym,units_total,management_fee,repair_fund,remarks
+サンプル,SAMPLE-001,,サンプルマンションA,横浜市旭区（サンプル）,南万騎が原,7,3480,3LDK,72.15,9.8,4/7,7,2007年3月,99,13500,9800,テスト用ダミー行
+サンプル,SAMPLE-002,,サンプルマンションA,横浜市旭区（サンプル）,南万騎が原,7,2980,2LDK,58.40,7.2,2/7,7,2007年3月,99,11200,8100,テスト用ダミー行
+サンプル,SAMPLE-003,,サンプルマンションB,横浜市旭区（サンプル）,南万騎が原,12,2180,3LDK,66.02,8.0,3/5,5,1995年3月,27,9800,7300,テスト用ダミー行

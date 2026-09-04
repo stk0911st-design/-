@@ -1,3 +1,14 @@
+# 業務自動化リポジトリ
+
+このリポジトリには2つの自動化が入っています。
+
+| 自動化 | 内容 | 詳細 |
+| --- | --- | --- |
+| 営業日報 まとめメール | 日報アプリの入力を翌営業日の朝にまとめて送信 | 下記 |
+| 南万騎が原 マンション台帳 | 南万騎が原駅の中古マンション売り出し／成約事例を週次で記録・蓄積 | [`docs/mansion-tracking.md`](docs/mansion-tracking.md) |
+
+---
+
 # 営業日報 まとめメール自動化
 
 営業日報アプリ（Google Apps Script + スプレッドシート「日報カウンター」）に入力された内容を、
@@ -74,3 +85,28 @@ value の JSON キー対応:
 Claude に依存せず動き続けるため、恒久運用にはこちらが確実です。
 
 導入手順は `gas/README.md` を参照。
+
+---
+
+# 南万騎が原 マンション台帳
+
+相鉄いずみ野線 南万騎が原駅（横浜市旭区）を最寄りとする中古マンションについて、
+週1回のスナップショットから **新規掲載 / 価格改定 / 掲載終了** を判定して蓄積します。
+掲載が終わった物件も削除せず、`status=掲載終了` として台帳に残ります。
+
+```bash
+python3 scripts/mansion_track.py ingest <週次スナップショット.csv> --date YYYY-MM-DD
+python3 scripts/mansion_track.py report
+python3 scripts/mansion_track.py view     # reports/index.html
+python3 scripts/mansion_track.py stats
+```
+
+| ファイル | 役割 |
+| --- | --- |
+| `scripts/mansion_track.py` | 取り込み・差分判定・レポート・一覧生成 |
+| `scripts/view_template.html` | 一覧ビューのテンプレート |
+| `gas/MansionWatcher.gs` | 収集側（成約事例APIの取得・週次サマリーメール） |
+| `data/` | 台帳・価格履歴・更新履歴・成約事例・生スナップショット |
+| `samples/snapshot-sample.csv` | 取り込みCSVの見本（テスト用ダミー） |
+
+仕様・収集ルート・注意点は [`docs/mansion-tracking.md`](docs/mansion-tracking.md) を参照。
