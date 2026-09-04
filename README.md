@@ -74,3 +74,20 @@ value の JSON キー対応:
 Claude に依存せず動き続けるため、恒久運用にはこちらが確実です。
 
 導入手順は `gas/README.md` を参照。
+
+---
+
+# 東京23区 中古マンション 市況トラッカー
+
+東日本レインズ「月例速報 Market Watch」を毎日18:00にチェックし、
+中古マンションの成約件数・新規登録件数・在庫件数をスプレッドシートに蓄積して
+メールで通知する仕組みです。
+
+- 実装: `gas/MansionMarketTracker.gs`
+- 導入手順: `docs/mansion-tracker-setup.md`
+- 事前調査（何が取れて何が取れないか）: `docs/tokyo-mansion-tracker-feasibility.md`
+- テスト: `node gas/tests/mansion-tracker.test.js`
+
+**データ粒度の前提:** レインズの公表は月1回・「東京都区部」（23区まとめ）が最小粒度で、
+23区の区別内訳と日次データは公表されていません。区別が必要な場合は
+国土交通省「不動産情報ライブラリ」API（四半期・区別）の追加が必要です。
