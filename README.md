@@ -7,7 +7,7 @@
 | 営業日報 まとめメール | 日報カウンターの入力を翌営業日の朝にまとめて送信 | 下記 |
 | メール自動仕分け | 代表・役員宛メールの仕分け／予定登録／エスカレーション／返信下書き／記録 | [`docs/mail-triage.md`](docs/mail-triage.md) |
 | 不動産情報 日次件数 | その日届いた不動産情報の件数を毎日21時にメール報告 | [`docs/property-info-count-routine.md`](docs/property-info-count-routine.md) |
-| 査定未返答アラート | 物件情報の入手から3営業日以内に査定を返していないものを毎営業日9時に通知 | [`docs/assessment-alert-routine.md`](docs/assessment-alert-routine.md) |
+| 査定未返答アラート | 物件紹介メールの受信から3営業日以内に査定を返していないものを毎営業日9時に通知 | [`docs/assessment-alert-routine.md`](docs/assessment-alert-routine.md) |
 
 ※ スプレッドシートID・宛先アドレス・API キーなどはこのリポジトリには置かず、
 実行環境側（Claude のルーティン設定、または Apps Script のスクリプトプロパティ）で管理します。
@@ -133,8 +133,10 @@ Claude のルーティンとして稼働します。設定と数え方は
 
 ## 査定未返答アラート
 
-物件情報を入手してから3営業日以内に査定を返していないものを検出し、
+業者から物件紹介メールが届いてから3営業日以内に査定を返していないものを検出し、
 毎営業日9:00（JST）に代表宛へアラートメールを送ります。該当が0件の日は送りません。
+
+起点は Backlog の起票日ではなく**メールの受信日**です。起票漏れも同時に検出できます。
 
 Backlog の API キーが未設定でも、**Backlog の通知メールと Gmail の送信履歴**から
 判定しています。詳細は [`docs/assessment-alert-routine.md`](docs/assessment-alert-routine.md) を参照。
