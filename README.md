@@ -106,7 +106,7 @@ python3 scripts/mansion_track.py stats
 | `scripts/mansion_track.py` | 取り込み・差分判定・レポート・一覧生成 |
 | `scripts/view_template.html` | 一覧ビューのテンプレート |
 | `gas/MansionWatcher.gs` | 収集側（成約事例APIの取得・週次サマリーメール） |
-| `data/` | 台帳・価格履歴・更新履歴・成約事例・生スナップショット |
+| `data/` | 実行中の作業領域（実データはコミットしない。本体は Google ドライブ） |
 | `samples/snapshot-sample.csv` | 取り込みCSVの見本（テスト用ダミー） |
 
 仕様・収集ルート・注意点は [`docs/mansion-tracking.md`](docs/mansion-tracking.md) を参照。

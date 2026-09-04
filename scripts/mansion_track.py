@@ -368,7 +368,8 @@ def stats():
     events = read_csv(EVENTS, EVENT_COLS)
     contracts = read_csv(CONTRACTS, CONTRACT_COLS)
     active = [r for r in listings if r.get("status") == "売出中"]
-    snaps = sorted(f[:-4] for f in os.listdir(SNAPDIR)) if os.path.isdir(SNAPDIR) else []
+    snaps = sorted(f[:-4] for f in os.listdir(SNAPDIR)
+                   if f.endswith(".csv")) if os.path.isdir(SNAPDIR) else []
     print(f"売出中 {len(active)}件 / 累積 {len(listings)}件 / "
           f"イベント {len(events)}件 / 成約事例 {len(contracts)}件 / "
           f"スナップショット {len(snaps)}回" + (f"（{snaps[0]}〜{snaps[-1]}）" if snaps else ""))

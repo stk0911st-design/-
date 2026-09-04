@@ -5,3 +5,12 @@ mail-preview.html
 # Python
 __pycache__/
 *.pyc
+
+# 台帳の実データ（レインズ由来・社外秘）はリポジトリに置かない。
+# 本体は Google ドライブ側で週ごとに版を重ねる（docs/mansion-tracking.md 参照）。
+data/*.csv
+data/snapshots/*.csv
+!data/.gitkeep
+!data/snapshots/.gitkeep
+reports/*.md
+reports/*.html
