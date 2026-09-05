@@ -83,3 +83,4 @@ Claude Code と Codex のどちらで開いても同じルールで作業でき�
 - `CLAUDE.md` … `AGENTS.md` を読み込むだけの薄いファイル（Claude Code 用）
 
 ルールを変えるときは `AGENTS.md` だけを編集してください。
+Codex ではじめて開くときの手順と、併用時の注意は `docs/ai-agent-usage.md` を参照。

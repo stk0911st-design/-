@@ -10,6 +10,7 @@
  *   RECIPIENT       送信先メールアドレス（必須）
  *   CC              CCアドレス（任意・カンマ区切り）
  *   SPREADSHEET_ID  対象スプレッドシートID（コンテナバインドでない場合のみ必須）
+ *   GREETING_NAME   本文冒頭の宛名（任意・敬称を除いた名前。未設定なら宛名行を出さない）
  */
 
 var TZ = 'Asia/Tokyo';
@@ -238,11 +239,17 @@ function formatDateLabel_(ymd) {
   return parts[0] + '年' + Number(parts[1]) + '月' + Number(parts[2]) + '日(' + wd + ')';
 }
 
+/** 宛名行を作る。GREETING_NAME 未設定なら宛名を省いて挨拶だけにする。 */
+function buildGreeting_() {
+  var name = (PropertiesService.getScriptProperties().getProperty('GREETING_NAME') || '').trim();
+  return name ? esc_(name) + '様<br>' : '';
+}
+
 function buildHtml_(targetDates, records, staffList) {
   var label = formatDateRangeLabel_(targetDates);
   var out = [];
   out.push('<div style="font-family:sans-serif;font-size:14px;line-height:1.7;color:#222">');
-  out.push('<p>小林様<br>お世話になっております。</p>');
+  out.push('<p>' + buildGreeting_() + 'お世話になっております。</p>');
 
   if (records.length === 0) {
     out.push('<p>' + esc_(label) + 'は、日報の入力がありませんでした。</p>');
