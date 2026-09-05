@@ -74,3 +74,14 @@ value の JSON キー対応:
 Claude に依存せず動き続けるため、恒久運用にはこちらが確実です。
 
 導入手順は `gas/README.md` を参照。
+
+## NotebookLM 連携
+
+同じ日報データを NotebookLM に読ませ、対話で振り返れるようにする連携も用意しています。
+
+- 設計とセットアップ手順：`docs/notebooklm-integration.md`
+- 更新ルーティンの設定：`docs/notebooklm-routine-prompt.md`
+- ドキュメントの雛形：`docs/templates/`
+
+Google ドライブの専用フォルダに Claude が月次のログを書き出し、
+NotebookLM 側はそのフォルダをソースに指定して自動同期させる方式です。
