@@ -1,0 +1,539 @@
+<title>音声日記</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap">
+<style>
+:root{
+  --bg:#EFF2F0; --surface:#FBFCFB; --surface-2:#E4E9E6; --ink:#19211E; --ink-soft:#5B6763;
+  --line:#D5DBD8; --accent:#1F6F5C; --accent-ink:#FFFFFF; --accent-soft:#DCEAE3;
+  --rec:#AF3A2D; --rec-soft:#F6E2DE; --shadow:0 1px 2px rgba(25,33,30,.06),0 8px 24px rgba(25,33,30,.06);
+}
+:root:not([data-theme="light"]){}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#111614; --surface:#191F1D; --surface-2:#232B28; --ink:#E7EDEA; --ink-soft:#98A6A1;
+    --line:#2C3532; --accent:#5CC0A3; --accent-ink:#0E1614; --accent-soft:#1C312B;
+    --rec:#E3705F; --rec-soft:#33201D; --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 28px rgba(0,0,0,.35);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#111614; --surface:#191F1D; --surface-2:#232B28; --ink:#E7EDEA; --ink-soft:#98A6A1;
+  --line:#2C3532; --accent:#5CC0A3; --accent-ink:#0E1614; --accent-soft:#1C312B;
+  --rec:#E3705F; --rec-soft:#33201D; --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 28px rgba(0,0,0,.35);
+}
+*{box-sizing:border-box}
+body{
+  background:var(--bg); color:var(--ink); margin:0;
+  font-family:"Zen Kaku Gothic New","Hiragino Kaku Gothic ProN","Noto Sans JP",system-ui,sans-serif;
+  font-size:16px; line-height:1.75; -webkit-text-size-adjust:100%;
+}
+.wrap{max-width:680px; margin:0 auto; padding:28px 20px 72px; display:flex; flex-direction:column; gap:28px}
+.eyebrow{font-size:12px; letter-spacing:.18em; color:var(--ink-soft); text-transform:none}
+header.top{display:flex; flex-direction:column; gap:10px}
+.datebar{display:flex; align-items:baseline; gap:12px; flex-wrap:wrap}
+.date{font-family:"Shippori Mincho B1",serif; font-weight:700; font-size:30px; line-height:1.25; letter-spacing:.02em; text-wrap:balance}
+.wd{font-family:"Shippori Mincho B1",serif; font-size:17px; color:var(--ink-soft)}
+.navbtns{margin-left:auto; display:flex; gap:6px}
+button{font:inherit; color:inherit; cursor:pointer}
+.ghost{background:transparent; border:1px solid var(--line); border-radius:8px; padding:5px 11px; font-size:13px; color:var(--ink-soft)}
+.ghost:hover{border-color:var(--accent); color:var(--accent)}
+.ghost[disabled]{opacity:.35; cursor:default}
+.ghost[disabled]:hover{border-color:var(--line); color:var(--ink-soft)}
+:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+
+.recorder{background:var(--surface); border:1px solid var(--line); border-radius:16px; box-shadow:var(--shadow); padding:26px 20px 20px; display:flex; flex-direction:column; align-items:center; gap:14px}
+.micbtn{
+  width:104px; height:104px; border-radius:50%; border:none; background:var(--accent); color:var(--accent-ink);
+  display:grid; place-items:center; box-shadow:0 6px 20px rgba(31,111,92,.28); transition:transform .12s ease, background .2s ease;
+}
+.micbtn:hover{transform:translateY(-1px)}
+.micbtn:active{transform:translateY(1px)}
+.micbtn.on{background:var(--rec); box-shadow:0 0 0 0 rgba(175,58,45,.5); animation:pulse 1.6s ease-out infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(175,58,45,.45)}70%{box-shadow:0 0 0 22px rgba(175,58,45,0)}100%{box-shadow:0 0 0 0 rgba(175,58,45,0)}}
+@media (prefers-reduced-motion:reduce){.micbtn.on{animation:none} *{transition:none!important}}
+.micbtn svg{width:40px; height:40px; display:block}
+.status{font-size:14px; color:var(--ink-soft); min-height:1.75em; text-align:center}
+.status.live{color:var(--rec); font-weight:500}
+.interim{width:100%; min-height:0; font-size:15px; color:var(--ink-soft); background:var(--surface-2); border-radius:10px; padding:10px 13px; display:none}
+.interim.show{display:block}
+.compose{width:100%; display:flex; flex-direction:column; gap:10px}
+textarea{
+  width:100%; min-height:96px; resize:vertical; padding:13px 14px; border-radius:11px; border:1px solid var(--line);
+  background:var(--bg); color:var(--ink); font:inherit; line-height:1.7;
+}
+textarea::placeholder{color:var(--ink-soft)}
+.row{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+.row .spacer{flex:1}
+.primary{background:var(--accent); color:var(--accent-ink); border:none; border-radius:10px; padding:10px 20px; font-weight:700; font-size:15px}
+.primary[disabled]{opacity:.4; cursor:default}
+.hint{font-size:12.5px; color:var(--ink-soft)}
+
+section h2{font-family:"Shippori Mincho B1",serif; font-size:18px; font-weight:700; margin:0 0 12px; display:flex; align-items:baseline; gap:10px}
+section h2 .count{font-size:12px; color:var(--ink-soft); font-family:"Zen Kaku Gothic New",sans-serif; font-weight:400}
+.notes{display:flex; flex-direction:column; gap:2px}
+.note{display:grid; grid-template-columns:56px 1fr auto; gap:12px; align-items:start; padding:12px 4px; border-bottom:1px solid var(--line)}
+.note:last-child{border-bottom:none}
+.note time{font-size:13px; color:var(--ink-soft); font-variant-numeric:tabular-nums; padding-top:.15em}
+.note p{margin:0; white-space:pre-wrap; word-break:break-word}
+.note .del{background:none; border:none; color:var(--ink-soft); font-size:12px; padding:2px 6px; border-radius:6px; opacity:.6}
+.note .del:hover{color:var(--rec); background:var(--rec-soft); opacity:1}
+.note.sample{opacity:.55}
+.tag{font-size:11px; border:1px solid var(--line); border-radius:999px; padding:1px 8px; color:var(--ink-soft)}
+.empty{color:var(--ink-soft); font-size:14px; padding:2px 4px}
+
+.diary{background:var(--surface); border:1px solid var(--line); border-radius:16px; box-shadow:var(--shadow); padding:20px}
+.diary h2{margin-bottom:6px}
+.diarybody{width:100%; min-height:150px; font-family:"Shippori Mincho B1",serif; font-size:16.5px; line-height:2}
+.mood{display:inline-block; background:var(--accent-soft); color:var(--accent); border-radius:999px; padding:2px 12px; font-size:13px; font-weight:500}
+.todos{list-style:none; margin:14px 0 0; padding:0; display:flex; flex-direction:column; gap:8px}
+.todos li{display:flex; gap:10px; align-items:flex-start; font-size:15px}
+.todos li::before{content:""; width:7px; height:7px; border-radius:2px; background:var(--accent); margin-top:.62em; flex:none}
+.past{display:flex; flex-direction:column}
+.pastitem{display:grid; grid-template-columns:auto 1fr auto; gap:12px; align-items:center; width:100%; text-align:left; background:none; border:none; border-bottom:1px solid var(--line); padding:13px 4px}
+.pastitem:hover{background:var(--surface-2)}
+.pastitem .pd{font-variant-numeric:tabular-nums; font-size:14px; color:var(--ink-soft); white-space:nowrap}
+.pastitem .pt{font-size:14.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.pastitem[aria-current="true"] .pd{color:var(--accent); font-weight:700}
+footer.note-foot{font-size:12.5px; color:var(--ink-soft); border-top:1px solid var(--line); padding-top:16px; display:flex; flex-direction:column; gap:6px}
+.err{background:var(--rec-soft); color:var(--rec); border-radius:10px; padding:10px 13px; font-size:14px; display:none}
+.err.show{display:block}
+@media (max-width:480px){
+  .date{font-size:25px}
+  .note{grid-template-columns:48px 1fr auto; gap:9px}
+  .wrap{padding:20px 15px 60px; gap:24px}
+}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="eyebrow">音声日記</div>
+    <div class="datebar">
+      <span class="date" id="dateText">—</span>
+      <span class="wd" id="wdText"></span>
+      <span class="navbtns">
+        <button class="ghost" id="prevDay" type="button" aria-label="前の日">◀</button>
+        <button class="ghost" id="todayBtn" type="button">今日</button>
+        <button class="ghost" id="nextDay" type="button" aria-label="次の日">▶</button>
+      </span>
+    </div>
+  </header>
+
+  <div class="err" id="err" role="alert"></div>
+
+  <div class="recorder">
+    <button class="micbtn" id="mic" type="button" aria-pressed="false" aria-label="録音を始める">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <rect x="9" y="2.5" width="6" height="11.5" rx="3"></rect>
+        <path d="M5.5 11.5a6.5 6.5 0 0 0 13 0"></path>
+        <path d="M12 18v3.5"></path>
+      </svg>
+    </button>
+    <div class="status" id="status">ボタンを押して、今日あったことを話してください</div>
+    <div class="interim" id="interim"></div>
+    <div class="compose">
+      <textarea id="draft" placeholder="話した内容がここに入ります。キーボードのマイクや手入力でも書けます。"></textarea>
+      <div class="row">
+        <button class="primary" id="save" type="button" disabled>記録する</button>
+        <button class="ghost" id="clear" type="button">消す</button>
+        <span class="spacer"></span>
+        <span class="hint" id="syncHint">この端末に保存中</span>
+      </div>
+    </div>
+  </div>
+
+  <section>
+    <h2>今日のメモ <span class="count" id="noteCount"></span></h2>
+    <div class="notes" id="notes"></div>
+  </section>
+
+  <section class="diary">
+    <h2>日記</h2>
+    <div class="row" style="margin-bottom:12px">
+      <button class="primary" id="genBtn" type="button">メモから日記をつくる</button>
+      <span class="mood" id="mood" hidden></span>
+      <span class="spacer"></span>
+      <span class="hint" id="genHint"></span>
+    </div>
+    <textarea class="diarybody" id="diaryBody" placeholder="ここに日記が入ります。自分で書き足しても、書き直しても大丈夫です。"></textarea>
+    <div id="todoWrap" hidden>
+      <h2 style="margin:18px 0 0">明日やること</h2>
+      <ul class="todos" id="todos"></ul>
+    </div>
+  </section>
+
+  <section>
+    <h2>これまでの記録 <span class="count" id="pastCount"></span></h2>
+    <div class="past" id="past"></div>
+  </section>
+
+  <footer class="note-foot">
+    <div>入力はこのページに保存されます。消すのは「消す」やゴミ箱を押したときだけで、自動では消えません。</div>
+    <div id="dlWrap" hidden><button class="ghost" id="dlBtn" type="button">ぜんぶ書き出す（.md）</button></div>
+  </footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var WD = ["日","月","火","水","木","金","土"];
+  var LS = "voice-diary:days:v1";
+  var $ = function(id){ return document.getElementById(id); };
+  function pad(n){ return String(n).padStart(2,"0"); }
+  function ymd(d){ return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate()); }
+  function parseYmd(s){ var p=s.split("-"); return new Date(+p[0], +p[1]-1, +p[2]); }
+  function fmtDate(s){ var d=parseYmd(s); return d.getFullYear()+"年"+(d.getMonth()+1)+"月"+d.getDate()+"日"; }
+  function fmtWd(s){ return "（"+WD[parseYmd(s).getDay()]+"）"; }
+  function hhmm(iso){ var d=new Date(iso); return pad(d.getHours())+":"+pad(d.getMinutes()); }
+  function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+
+  var today = ymd(new Date());
+  var current = today;
+  var days = {};          // date -> {date, notes:[], diary, todos:[], mood, updatedAt}
+  var db = null, sample = null, downloads = null;
+  var pendingDiarySave = null;
+
+  function blank(date){ return { date:date, notes:[], diary:"", todos:[], mood:"", updatedAt:"" }; }
+  function day(date){ return days[date] || blank(date); }
+
+  // ---- storage -------------------------------------------------------
+  function readLocal(){
+    try {
+      var raw = localStorage.getItem(LS);
+      if (raw) days = JSON.parse(raw) || {};
+    } catch(e){ /* 保存が使えない環境でも画面は動かす */ }
+  }
+  function writeLocal(){
+    try { localStorage.setItem(LS, JSON.stringify(days)); } catch(e){}
+  }
+  function commit(d){
+    d.updatedAt = new Date().toISOString();
+    days[d.date] = d;
+    writeLocal();
+    render();
+    if (db) {
+      db.doc("days/"+d.date).set(d).catch(function(e){
+        showErr("保存できませんでした（"+(e && e.code ? e.code : "不明")+"）。この端末には残っています。");
+      });
+    }
+  }
+  function showErr(msg){ var el=$("err"); el.textContent=msg; el.classList.add("show"); }
+  function clearErr(){ $("err").classList.remove("show"); }
+
+  // ---- 録音 -----------------------------------------------------------
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  var rec = null, wantRec = false, lastStart = 0;
+
+  function setStatus(text, live){
+    var el = $("status");
+    el.textContent = text;
+    el.classList.toggle("live", !!live);
+  }
+  function appendDraft(text){
+    var ta = $("draft");
+    var sep = ta.value && !/[\s。、」]$/.test(ta.value) ? "。" : "";
+    ta.value = ta.value ? ta.value + sep + text : text;
+    syncSaveBtn();
+  }
+  function startRec(){
+    if (!SR) return;
+    if (!rec){
+      rec = new SR();
+      rec.lang = "ja-JP";
+      rec.continuous = true;
+      rec.interimResults = true;
+      rec.onresult = function(ev){
+        var interim = "";
+        for (var i = ev.resultIndex; i < ev.results.length; i++){
+          var r = ev.results[i];
+          if (r.isFinal) appendDraft(r[0].transcript.trim());
+          else interim += r[0].transcript;
+        }
+        var box = $("interim");
+        box.textContent = interim;
+        box.classList.toggle("show", !!interim);
+      };
+      rec.onerror = function(ev){
+        if (ev.error === "no-speech" || ev.error === "aborted") return;
+        wantRec = false;
+        paintMic();
+        if (ev.error === "not-allowed" || ev.error === "service-not-allowed"){
+          showErr("マイクの使用が許可されていません。ブラウザのアドレスバーの鍵マークから、マイクを許可してください。");
+        } else if (ev.error === "audio-capture"){
+          showErr("マイクが見つかりません。端末のマイクを確認してください。");
+        } else if (ev.error === "network"){
+          showErr("音声認識の通信に失敗しました。キーボードのマイク入力で書けます。");
+        } else {
+          showErr("録音を続けられませんでした（"+ev.error+"）。もう一度お試しください。");
+        }
+      };
+      rec.onend = function(){
+        $("interim").classList.remove("show");
+        if (wantRec && Date.now() - lastStart > 700){
+          try { lastStart = Date.now(); rec.start(); } catch(e){ wantRec = false; paintMic(); }
+        } else if (!wantRec){
+          paintMic();
+        }
+      };
+    }
+    clearErr();
+    wantRec = true;
+    try { lastStart = Date.now(); rec.start(); } catch(e){}
+    paintMic();
+  }
+  function stopRec(){
+    wantRec = false;
+    if (rec) { try { rec.stop(); } catch(e){} }
+    paintMic();
+  }
+  function paintMic(){
+    var b = $("mic");
+    b.classList.toggle("on", wantRec);
+    b.setAttribute("aria-pressed", wantRec ? "true" : "false");
+    b.setAttribute("aria-label", wantRec ? "録音を止める" : "録音を始める");
+    if (wantRec) setStatus("聞いています。話し終わったら、もう一度ボタンを押してください", true);
+    else setStatus(SR ? "ボタンを押して、今日あったことを話してください"
+                      : "このブラウザは録音に対応していません。下の欄にキーボードのマイクで入れてください");
+  }
+
+  // ---- 画面 -----------------------------------------------------------
+  function syncSaveBtn(){ $("save").disabled = !$("draft").value.trim(); }
+
+  function renderHeader(){
+    $("dateText").textContent = fmtDate(current) + (current === today ? "" : "");
+    $("wdText").textContent = fmtWd(current) + (current === today ? "　今日" : "");
+    $("nextDay").disabled = current >= today;
+    $("todayBtn").disabled = current === today;
+  }
+
+  function renderNotes(){
+    var d = day(current);
+    var box = $("notes");
+    box.textContent = "";
+    $("noteCount").textContent = d.notes.length ? d.notes.length + "件" : "";
+    if (!d.notes.length){
+      var ex = document.createElement("div");
+      ex.className = "note sample";
+      ex.innerHTML = '<time>21:30</time><p>朝いちで見積もりを出した。午後の打ち合わせは来週に延期。夜は少し歩いた。</p><span class="tag">例</span>';
+      box.appendChild(ex);
+      var e2 = document.createElement("div");
+      e2.className = "empty";
+      e2.textContent = "上のボタンから話すと、ここに時刻つきで並びます。";
+      box.appendChild(e2);
+      return;
+    }
+    d.notes.forEach(function(n){
+      var row = document.createElement("div");
+      row.className = "note";
+      var t = document.createElement("time"); t.textContent = hhmm(n.at);
+      var p = document.createElement("p"); p.textContent = n.text;
+      var del = document.createElement("button");
+      del.className = "del"; del.type = "button"; del.textContent = "削除";
+      del.setAttribute("aria-label", "このメモを削除");
+      del.onclick = function(){
+        if (!confirm("このメモを削除します。\n\n「"+n.text.slice(0,40)+(n.text.length>40?"…":"")+"」\n\nよろしいですか？")) return;
+        var cur = day(current);
+        cur.notes = cur.notes.filter(function(x){ return x.id !== n.id; });
+        commit(cur);
+      };
+      row.appendChild(t); row.appendChild(p); row.appendChild(del);
+      box.appendChild(row);
+    });
+  }
+
+  function renderDiary(){
+    var d = day(current);
+    if (document.activeElement !== $("diaryBody")) $("diaryBody").value = d.diary || "";
+    var mood = $("mood");
+    if (d.mood){ mood.textContent = d.mood; mood.hidden = false; } else { mood.hidden = true; }
+    var wrap = $("todoWrap"), ul = $("todos");
+    ul.textContent = "";
+    if (d.todos && d.todos.length){
+      wrap.hidden = false;
+      d.todos.forEach(function(t){
+        var li = document.createElement("li");
+        var span = document.createElement("span"); span.textContent = t;
+        li.appendChild(span); ul.appendChild(li);
+      });
+    } else { wrap.hidden = true; }
+    $("genBtn").disabled = !day(current).notes.length;
+    $("genHint").textContent = sample === null
+      ? "この画面では自動作成が使えません。メモをもとに自分で書けます"
+      : (day(current).notes.length ? "" : "メモが1件もないので、まだ作れません");
+  }
+
+  function renderPast(){
+    var box = $("past");
+    box.textContent = "";
+    var list = Object.keys(days).filter(function(k){
+      var d = days[k];
+      return (d.notes && d.notes.length) || (d.diary || "").trim();
+    }).sort().reverse();
+    $("pastCount").textContent = list.length ? list.length + "日分" : "";
+    if (!list.length){
+      var e = document.createElement("div");
+      e.className = "empty";
+      e.textContent = "記録した日がここに並びます。";
+      box.appendChild(e);
+      return;
+    }
+    list.slice(0, 60).forEach(function(k){
+      var d = days[k];
+      var btn = document.createElement("button");
+      btn.className = "pastitem"; btn.type = "button";
+      if (k === current) btn.setAttribute("aria-current","true");
+      var pd = document.createElement("span"); pd.className = "pd";
+      pd.textContent = k.slice(5).replace("-","/") + "（" + WD[parseYmd(k).getDay()] + "）";
+      var pt = document.createElement("span"); pt.className = "pt";
+      pt.textContent = (d.diary || (d.notes[0] && d.notes[0].text) || "").replace(/\s+/g," ").slice(0,40) || "—";
+      var tag = document.createElement("span"); tag.className = "tag";
+      tag.textContent = (d.diary || "").trim() ? "日記あり" : (d.notes.length + "メモ");
+      btn.appendChild(pd); btn.appendChild(pt); btn.appendChild(tag);
+      btn.onclick = function(){ current = k; render(); window.scrollTo({top:0, behavior:"smooth"}); };
+      box.appendChild(btn);
+    });
+  }
+
+  function render(){ renderHeader(); renderNotes(); renderDiary(); renderPast(); }
+
+  // ---- 日記の自動作成 ---------------------------------------------------
+  function buildPrompt(d){
+    var lines = d.notes.map(function(n){ return hhmm(n.at) + "　" + n.text; }).join("\n");
+    return [
+      "あなたは本人の個人秘書です。次は本人が " + fmtDate(d.date) + fmtWd(d.date) + " に吹き込んだ音声メモです。",
+      "",
+      lines,
+      "",
+      "これをもとに日本語で日記を書いてください。守ること：",
+      "・一人称（自分視点）、ですます調ではなく、落ち着いた常体で3〜6文。",
+      "・メモに書かれていない出来事・感情・数字を足さない。推測で補わない。",
+      "・音声入力の言いよどみや変換ミスは、意味を変えずに整える。",
+      "・明日やることは、メモの中に手がかりがある範囲だけ挙げる。無ければ空の配列。",
+      "",
+      "出力は次の形のJSONのみ。前後に説明を書かない。",
+      '{"diary":"日記本文","todos":["明日やること"],"mood":"今日をひとことで（8文字以内）"}'
+    ].join("\n");
+  }
+
+  function generate(){
+    var d = day(current);
+    if (!d.notes.length || !sample) return;
+    var btn = $("genBtn");
+    btn.disabled = true;
+    $("genHint").textContent = "書いています…";
+    sample.json(buildPrompt(d), { modelTier: "default" }).then(function(out){
+      var cur = day(current);
+      cur.diary = String((out && out.diary) || "").trim();
+      cur.todos = Array.isArray(out && out.todos) ? out.todos.map(String).slice(0,8) : [];
+      cur.mood = String((out && out.mood) || "").slice(0,20);
+      commit(cur);
+      $("genHint").textContent = "できました。直したいところは書き換えてください";
+    }).catch(function(e){
+      var code = e && e.code;
+      if (code === "not_granted") { $("genHint").textContent = "この画面では自動作成が使えません"; sample = null; }
+      else if (code === "rate_limited") $("genHint").textContent = "混み合っています。少し待ってからもう一度";
+      else if (code === "invalid_json") $("genHint").textContent = "うまく作れませんでした。もう一度押してください";
+      else $("genHint").textContent = "作成に失敗しました（" + (code || "不明") + "）";
+    }).then(function(){ $("genBtn").disabled = !day(current).notes.length; });
+  }
+
+  // ---- 書き出し --------------------------------------------------------
+  function toMarkdown(){
+    var keys = Object.keys(days).sort().reverse();
+    var out = ["# 音声日記", ""];
+    keys.forEach(function(k){
+      var d = days[k];
+      if (!d.notes.length && !(d.diary||"").trim()) return;
+      out.push("## " + fmtDate(k) + fmtWd(k));
+      if ((d.diary||"").trim()) { out.push("", d.diary.trim()); }
+      if (d.todos && d.todos.length){
+        out.push("", "**明日やること**", "");
+        d.todos.forEach(function(t){ out.push("- " + t); });
+      }
+      if (d.notes.length){
+        out.push("", "**メモ**", "");
+        d.notes.forEach(function(n){ out.push("- " + hhmm(n.at) + " " + n.text); });
+      }
+      out.push("");
+    });
+    return out.join("\n");
+  }
+
+  // ---- 起動 ------------------------------------------------------------
+  readLocal();
+  render();
+  paintMic();
+  if (!SR) $("mic").disabled = true;
+
+  $("mic").onclick = function(){ wantRec ? stopRec() : startRec(); };
+  $("draft").oninput = syncSaveBtn;
+  $("save").onclick = function(){
+    var text = $("draft").value.trim();
+    if (!text) return;
+    stopRec();
+    var d = day(current);
+    d.notes = d.notes.concat([{ id: uid(), at: new Date().toISOString(), text: text }]);
+    commit(d);
+    $("draft").value = "";
+    $("interim").classList.remove("show");
+    syncSaveBtn();
+  };
+  $("clear").onclick = function(){
+    if ($("draft").value.trim() && !confirm("書きかけの内容を消します。よろしいですか？")) return;
+    $("draft").value = ""; syncSaveBtn();
+  };
+  $("diaryBody").oninput = function(){
+    clearTimeout(pendingDiarySave);
+    var v = this.value;
+    pendingDiarySave = setTimeout(function(){
+      var d = day(current);
+      if (d.diary === v) return;
+      d.diary = v;
+      commit(d);
+    }, 800);
+  };
+  $("prevDay").onclick = function(){ var d=parseYmd(current); d.setDate(d.getDate()-1); current=ymd(d); render(); };
+  $("nextDay").onclick = function(){ if (current>=today) return; var d=parseYmd(current); d.setDate(d.getDate()+1); current=ymd(d); render(); };
+  $("todayBtn").onclick = function(){ current = today; render(); };
+  $("genBtn").onclick = generate;
+
+  // capabilities（使えない環境でも、ここまでで普通に動く）
+  if (window.claude && typeof window.claude.use === "function"){
+    window.claude.use("db").then(function(x){
+      db = x;
+      if (!db) return;
+      $("syncHint").textContent = "保存済み（どの端末からでも見られます）";
+      db.collection("days").orderBy("date","desc").limit(120).onSnapshot(function(snap){
+        snap.docs.forEach(function(doc){
+          var v = doc.data();
+          if (!v) return;
+          var local = days[doc.id];
+          if (!local || !local.updatedAt || String(v.updatedAt||"") >= local.updatedAt){
+            days[doc.id] = {
+              date: String(v.date || doc.id),
+              notes: Array.isArray(v.notes) ? v.notes : [],
+              diary: String(v.diary || ""),
+              todos: Array.isArray(v.todos) ? v.todos : [],
+              mood: String(v.mood || ""),
+              updatedAt: String(v.updatedAt || "")
+            };
+          }
+        });
+        writeLocal();
+        render();
+      }, function(e){
+        $("syncHint").textContent = "この端末にのみ保存中";
+        if (e && e.code === "revoked") db = null;
+      });
+    });
+    window.claude.use("sample").then(function(x){ sample = x; renderDiary(); });
+    window.claude.use("downloads").then(function(x){
+      downloads = x;
+      if (!downloads) return;
+      $("dlWrap").hidden = false;
+      $("dlBtn").onclick = function(){
+        downloads.save({ filename: "voice-diary-" + today + ".md", data: toMarkdown() })
+          .catch(function(){ /* 取り消しても何もしない */ });
+      };
+    });
+  }
+})();
+</script>
