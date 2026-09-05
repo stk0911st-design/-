@@ -30,3 +30,31 @@
 - 月：前週の金・土・日の3日分
 - 土日：何もしない
 - 対象日に入力が0件でも「入力なし」のメールを送信します。
+
+---
+
+# 恵比寿 物件在庫（Apps Script 版）
+
+恵比寿エリアの売り物件を毎日ためて、在庫数と月次の動きを集計するスクリプトです。
+
+| ファイル | 役割 |
+| --- | --- |
+| `LandStock.gs` | 取込 → 物件マスタ → 日次／月次サマリ。これだけで動きます |
+| `LandStockMailer.gs` | 毎朝のまとめメール（任意） |
+| `LandStockReinfolib.gs` | 国交省APIから実際の成約価格を取り込む（任意） |
+
+導入手順・シート構成・スクリプトプロパティの一覧は `docs/ebisu-land-stock.md` を参照してください。
+
+## 主な関数
+
+| 関数 | 用途 |
+| --- | --- |
+| `setupLandStockSheets` | 初回にシートを作る |
+| `runDailyLandStock` | 毎日のトリガーから呼ぶ本体 |
+| `previewLandStockMail` | メール文面をログに出す（送信しない） |
+| `sendLandStockMail` | まとめメールを送る（先に集計も実行します） |
+| `rebuildLandStockSummaries` | 日次・月次サマリだけ作り直す |
+| `fetchEbisuTrades` | 国交省APIから成約実績を取り込む（月1回で十分） |
+
+`LandStock.gs` を直したときは、貼り付ける前に `node test/landstock.test.js` で
+ロジックを確認できます。

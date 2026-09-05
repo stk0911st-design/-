@@ -10,6 +10,7 @@
  *   _raw     … 送られてきた生データ（キーごとに1行・上書き）
  *   日報明細  … 日報カウンターの内容を1件1行に展開したもの
  *   営業明細  … 営業目標管理の内容を1件1行に展開したもの
+ *   取込     … 恵比寿の物件情報（type:'land'。LandStock.gs が同じプロジェクトにある場合）
  *
  * スクリプトプロパティ:
  *   TOKEN … 合言葉（必須）。アプリ側と同じ文字列にする。
@@ -56,6 +57,14 @@ function doPost(e) {
       case 'raw':
         saveRaw_(ss, body);
         return json_({ ok: true, type: 'raw' });
+      case 'land':
+        // 恵比寿の物件情報。LandStock.gs を同じプロジェクトに入れている場合のみ使える。
+        if (typeof lsIntakeFromPost_ !== 'function') {
+          return json_({ ok: false, error: 'LandStock.gs がこのプロジェクトにありません' });
+        }
+        var landRows = lsIntakeFromPost_(ss, body);
+        writeLog_(ss, 'land', body.from, landRows + '行');
+        return json_({ ok: true, type: 'land', saved: landRows });
       default:
         return json_({ ok: false, error: 'unknown type: ' + body.type });
     }
