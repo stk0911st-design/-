@@ -7,7 +7,8 @@
  *
  * 作られるシート:
  *   成約データ   … APIから取り込んだ1件1行の明細（重複は取り込まない）
- *   売出ウォッチ … 現在売り出し中の物件を手入力で管理する表（坪単価等は自動計算）
+ *   売出ウォッチ … 現在売り出し中の物件の表。坪単価・経過日数・値下げ率は自動計算
+ *   価格履歴     … 売出価格を書き換えるたびに自動で1行たまる改定履歴
  *   月次サマリ   … 区×月の件数・平均坪単価・中央値
  *   _watchlog    … 取り込みの実行記録
  *
@@ -36,6 +37,7 @@ var TARGET_TYPES = ['中古マンション等'];
 
 var SHEET_DEAL = '成約データ';
 var SHEET_WATCH = '売出ウォッチ';
+var SHEET_HISTORY = '価格履歴';
 var SHEET_SUMMARY = '月次サマリ';
 var SHEET_MWLOG = '_watchlog';
 
@@ -44,11 +46,31 @@ var HEAD_DEAL = [
   '間取り', '築年', '築年数', '構造', '用途', 'リフォーム', '都市計画', '価格情報区分', '備考', 'キー'
 ];
 
+/**
+ * 売出ウォッチの列。C_ 定数は0始まりの列位置。
+ * 自動計算：当初価格・坪単価・経過日数・値下げ率・乖離率。手で触らないこと。
+ */
 var HEAD_WATCH = [
   '登録日', '状態', '区', '所在', '物件名', '部屋番号', '売出価格(万円)', '当初価格(万円)',
   '専有面積(㎡)', '坪単価(万円)', '間取り', '階', '築年', '売出日', '経過日数',
-  '値下げ率(%)', '成約価格(万円)', '成約日', '情報元', 'メモ'
+  '値下げ率(%)', '成約価格(万円)', '成約日', '乖離率(%)', '情報元', 'メモ'
 ];
+
+var C_REGISTERED = 0;
+var C_STATUS = 1;
+var C_NAME = 4;
+var C_PRICE = 6;
+var C_FIRST_PRICE = 7;
+var C_AREA = 8;
+var C_TSUBO = 9;
+var C_LISTED = 13;
+var C_DAYS = 14;
+var C_CUT = 15;
+var C_DEAL_PRICE = 16;
+var C_DEAL_DATE = 17;
+var C_GAP = 18;
+
+var HEAD_HISTORY = ['記録日時', '区', '物件名', '部屋番号', '変更前(万円)', '変更後(万円)', '増減(万円)', '増減率(%)'];
 
 var HEAD_SUMMARY = ['集計月', '区', '件数', '平均坪単価(万円)', '中央値坪単価(万円)', '平均価格(万円)', '最高価格(万円)'];
 
@@ -61,6 +83,7 @@ function setupMarketWatch() {
   var ss = book_();
   sheet_(ss, SHEET_DEAL, HEAD_DEAL);
   sheet_(ss, SHEET_WATCH, HEAD_WATCH);
+  sheet_(ss, SHEET_HISTORY, HEAD_HISTORY);
   sheet_(ss, SHEET_SUMMARY, HEAD_SUMMARY);
   sheet_(ss, SHEET_MWLOG, HEAD_MWLOG);
   Logger.log('シートを用意しました。次に importLatestTransactions を実行してください。');
@@ -239,28 +262,91 @@ function rebuildSummary() {
   if (rows.length) sh.getRange(2, 1, rows.length, HEAD_SUMMARY.length).setValues(rows);
 }
 
-/** 売出ウォッチ表の坪単価・経過日数・値下げ率を計算し直す。 */
+/** 売出ウォッチ表の自動列を、全行まとめて計算し直す。 */
 function refreshWatchlist() {
   var ss = book_();
   var sh = sheet_(ss, SHEET_WATCH, HEAD_WATCH);
   var last = sh.getLastRow();
   if (last < 2) return;
 
-  var values = sh.getRange(2, 1, last - 1, HEAD_WATCH.length).getValues();
+  var range = sh.getRange(2, 1, last - 1, HEAD_WATCH.length);
+  var values = range.getValues();
+  for (var i = 0; i < values.length; i++) recalc_(values[i]);
+  range.setValues(values);
+}
+
+/**
+ * 1行ぶんの自動列を計算する。行の配列を直接書き換える。
+ *   当初価格 … 空なら現在の売出価格で埋める（初回登録ぶん）
+ *   坪単価   … 売出価格 ÷（面積 ÷ 3.305785）。成約後は成約価格で計算する
+ *   経過日数 … 売出日から今日（成約済みなら成約日）まで
+ *   値下げ率 … （当初価格 − 現売出価格）÷ 当初価格
+ *   乖離率   … （成約価格 − 当初価格）÷ 当初価格。査定と結果のズレ
+ */
+function recalc_(v) {
+  var price = Number(v[C_PRICE]);
+  var area = Number(v[C_AREA]);
+  var deal = Number(v[C_DEAL_PRICE]);
+
+  if (!v[C_FIRST_PRICE] && price) v[C_FIRST_PRICE] = price;
+  var first = Number(v[C_FIRST_PRICE]);
+
+  var basis = deal || price;
+  v[C_TSUBO] = (basis && area) ? round_(basis / (area / TSUBO), 1) : '';
+
+  var from = v[C_LISTED];
+  var to = (v[C_DEAL_DATE] instanceof Date) ? v[C_DEAL_DATE] : new Date();
+  v[C_DAYS] = (from instanceof Date) ? Math.floor((to - from) / 86400000) : '';
+
+  v[C_CUT] = (first > 0 && price) ? round_((first - price) / first * 100, 1) : '';
+  v[C_GAP] = (first > 0 && deal) ? round_((deal - first) / first * 100, 1) : '';
+}
+
+/**
+ * 売出ウォッチを手で編集したときに走る。インストール型トリガーで登録すること
+ * （価格履歴シートへの書き込みがあるため、単純トリガーでは権限が足りない）。
+ *
+ *   売出価格を書き換えた → 価格履歴に1行残す
+ *   状態を「成約」にした → 成約日が空なら今日を入れる
+ *   物件名を入れた       → 登録日・状態・売出日の空欄を埋める
+ * いずれの場合もその行の自動列を計算し直す。
+ */
+function onEditMarketWatch(e) {
+  if (!e || !e.range) return;
+  var sh = e.range.getSheet();
+  if (sh.getName() !== SHEET_WATCH) return;
+
+  var row = e.range.getRow();
+  var col = e.range.getColumn();
+  if (row < 2 || col > HEAD_WATCH.length) return;
+
+  var range = sh.getRange(row, 1, 1, HEAD_WATCH.length);
+  var v = range.getValues()[0];
   var today = new Date();
 
-  for (var i = 0; i < values.length; i++) {
-    var v = values[i];
-    var price = Number(v[6]);      // 売出価格(万円)
-    var first = Number(v[7]);      // 当初価格(万円)
-    var area = Number(v[8]);       // 専有面積(㎡)
-    var listed = v[13];            // 売出日
-
-    v[9] = (price && area) ? round_(price / (area / TSUBO), 1) : '';
-    v[14] = (listed instanceof Date) ? Math.floor((today - listed) / 86400000) : '';
-    v[15] = (first && price && first > 0) ? round_((first - price) / first * 100, 1) : '';
+  if (col - 1 === C_PRICE) {
+    var before = Number(String(e.oldValue == null ? '' : e.oldValue).replace(/[^0-9.\-]/g, ''));
+    var after = Number(v[C_PRICE]);
+    if (before && after && before !== after) {
+      sheet_(book_(), SHEET_HISTORY, HEAD_HISTORY).appendRow([
+        today, v[2], v[C_NAME], v[5], before, after,
+        round_(after - before, 1), round_((after - before) / before * 100, 1)
+      ]);
+    }
   }
-  sh.getRange(2, 1, values.length, HEAD_WATCH.length).setValues(values);
+
+  if (col - 1 === C_STATUS && String(v[C_STATUS]) === '成約' && !v[C_DEAL_DATE]) {
+    v[C_DEAL_DATE] = today;
+  }
+
+  if (v[C_NAME]) {
+    if (!v[C_REGISTERED]) v[C_REGISTERED] = today;
+    if (!v[C_STATUS]) v[C_STATUS] = '売出中';
+    if (!v[C_LISTED]) v[C_LISTED] = v[C_REGISTERED];
+  }
+
+  recalc_(v);
+  range.setValues([v]);
 }
 
 // ---------------------------------------------------------------- メール
@@ -316,9 +402,12 @@ function buildDigestHtml_(ss) {
   var w = ss.getSheetByName(SHEET_WATCH);
   if (w && w.getLastRow() > 1) {
     var wv = w.getRange(2, 1, w.getLastRow() - 1, HEAD_WATCH.length).getValues();
-    var active = wv.filter(function (r) { return String(r[1]) !== '成約' && String(r[1]) !== '取下'; });
-    var stale = active.filter(function (r) { return Number(r[14]) >= 90; });
-    var cut = active.filter(function (r) { return Number(r[15]) > 0; });
+    var active = wv.filter(function (r) {
+      var st = String(r[C_STATUS]);
+      return st !== '成約' && st !== '取下';
+    });
+    var stale = active.filter(function (r) { return Number(r[C_DAYS]) >= 90; });
+    var cut = active.filter(function (r) { return Number(r[C_CUT]) > 0; });
 
     out.push('<h3>売出中 ' + active.length + '件</h3>');
     out.push('<ul>');
@@ -328,10 +417,34 @@ function buildDigestHtml_(ss) {
 
     if (cut.length) {
       out.push('<h4>値下げがあった物件</h4>');
-      var head = ['区', '物件名', '売出価格(万円)', '坪単価(万円)', '経過日数', '値下げ率(%)'];
-      out.push(table_(head, cut.map(function (r) {
-        return [r[2], r[4], r[6], r[9], r[14], r[15]];
-      })));
+      out.push(table_(
+        ['区', '物件名', '売出価格(万円)', '坪単価(万円)', '経過日数', '値下げ率(%)'],
+        cut.map(function (r) {
+          return [r[2], r[C_NAME], r[C_PRICE], r[C_TSUBO], r[C_DAYS], r[C_CUT]];
+        })));
+    }
+
+    if (stale.length) {
+      out.push('<h4>90日以上動いていない物件</h4>');
+      out.push(table_(
+        ['区', '物件名', '売出価格(万円)', '坪単価(万円)', '経過日数'],
+        stale.map(function (r) {
+          return [r[2], r[C_NAME], r[C_PRICE], r[C_TSUBO], r[C_DAYS]];
+        })));
+    }
+
+    // 直近30日に成約した物件。当初売出価格からどれだけ動いたかを見る
+    var since = new Date(new Date().getTime() - 30 * 86400000);
+    var done = wv.filter(function (r) {
+      return String(r[C_STATUS]) === '成約' && (r[C_DEAL_DATE] instanceof Date) && r[C_DEAL_DATE] >= since;
+    });
+    if (done.length) {
+      out.push('<h4>直近30日の成約 ' + done.length + '件</h4>');
+      out.push(table_(
+        ['区', '物件名', '当初価格(万円)', '成約価格(万円)', '坪単価(万円)', '売出〜成約(日)', '乖離率(%)'],
+        done.map(function (r) {
+          return [r[2], r[C_NAME], r[C_FIRST_PRICE], r[C_DEAL_PRICE], r[C_TSUBO], r[C_DAYS], r[C_GAP]];
+        })));
     }
   } else {
     out.push('<p>売出ウォッチ表は空です。</p>');
@@ -340,7 +453,9 @@ function buildDigestHtml_(ss) {
   out.push('<p style="color:#666;font-size:12px">' +
     '※ 成約データは国土交通省「不動産情報ライブラリ」の取引価格・成約価格情報です。' +
     '公表は四半期ごとで、直近の取引が反映されるまで数カ月かかります。<br>' +
-    '※ 売出ウォッチは手入力の表です。数値はそのまま集計しています。</p>');
+    '※ 売出ウォッチは手入力の表です。数値はそのまま集計しています。<br>' +
+    '※ 乖離率は「成約価格が当初の売出価格からどれだけ動いたか」です。' +
+    'マイナスが大きいほど、最初の売出価格が強気だったことを示します。</p>');
   return out.join('\n');
 }
 
