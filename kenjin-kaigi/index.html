@@ -1,0 +1,784 @@
+<title>賢人会議</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@600;800&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap">
+<style>
+:root{
+  --paper:#EBECE9;
+  --panel:#F6F7F5;
+  --panel-2:#E2E4E0;
+  --ink:#15181B;
+  --ink-2:#4A5158;
+  --ink-3:#7C848C;
+  --rule:#C9CDC8;
+  --indigo:#26418F;
+  --indigo-soft:#DDE2F0;
+  --shu:#AE3E27;
+  --focus:#26418F;
+  --shadow:0 1px 0 rgba(21,24,27,.06), 0 8px 24px -18px rgba(21,24,27,.5);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#14171A;
+    --panel:#1C2024;
+    --panel-2:#262B30;
+    --ink:#E8EAE6;
+    --ink-2:#AEB6BD;
+    --ink-3:#7F888F;
+    --rule:#333A41;
+    --indigo:#8FA8E8;
+    --indigo-soft:#232C42;
+    --shu:#E08A72;
+    --focus:#8FA8E8;
+    --shadow:0 1px 0 rgba(0,0,0,.3), 0 10px 28px -20px #000;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#14171A;
+  --panel:#1C2024;
+  --panel-2:#262B30;
+  --ink:#E8EAE6;
+  --ink-2:#AEB6BD;
+  --ink-3:#7F888F;
+  --rule:#333A41;
+  --indigo:#8FA8E8;
+  --indigo-soft:#232C42;
+  --shu:#E08A72;
+  --focus:#8FA8E8;
+  --shadow:0 1px 0 rgba(0,0,0,.3), 0 10px 28px -20px #000;
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:var(--paper);
+  color:var(--ink);
+  font-family:"Zen Kaku Gothic New","Hiragino Sans","Noto Sans JP",system-ui,sans-serif;
+  font-size:15px;
+  line-height:1.85;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,h4{font-family:"Shippori Mincho","Hiragino Mincho ProN",serif;font-weight:600;text-wrap:balance;margin:0}
+button,input,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px;border-radius:2px}
+
+.wrap{max-width:940px;margin:0 auto;padding:28px 20px 80px;display:flex;flex-direction:column;gap:34px}
+
+/* --- masthead --- */
+.masthead{display:flex;flex-direction:column;gap:14px;padding-bottom:18px;border-bottom:1px solid var(--rule)}
+.brand{display:flex;align-items:center;gap:14px}
+.mark{
+  width:46px;height:46px;flex:none;display:grid;place-items:center;
+  font-family:"Shippori Mincho",serif;font-size:24px;font-weight:800;
+  color:var(--paper);background:var(--ink);
+}
+.masthead h1{font-size:27px;letter-spacing:.06em;line-height:1.2}
+.tagline{margin:2px 0 0;color:var(--ink-2);font-size:13px}
+.disclaimer{
+  margin:0;font-size:12px;line-height:1.7;color:var(--ink-2);
+  border-left:3px solid var(--shu);padding-left:11px;
+}
+.disclaimer b{color:var(--shu);font-weight:700}
+
+.eyebrow{
+  font-family:"Zen Kaku Gothic New",sans-serif;font-size:11px;font-weight:700;
+  letter-spacing:.18em;color:var(--ink-3);margin:0 0 12px;
+}
+
+/* --- seats --- */
+.seats{display:grid;grid-template-columns:repeat(auto-fit,minmax(196px,1fr));gap:10px}
+.seat{
+  position:relative;text-align:left;cursor:pointer;
+  background:var(--panel);border:1px solid var(--rule);border-left:4px solid var(--seat,var(--ink-3));
+  padding:12px 13px;display:flex;flex-direction:column;gap:5px;transition:background .15s,border-color .15s;
+}
+.seat:hover{background:var(--panel-2)}
+.seat[aria-pressed="true"]{border-color:var(--seat);background:var(--panel-2);box-shadow:var(--shadow)}
+.seat[aria-pressed="true"] .check{opacity:1}
+.check{
+  position:absolute;top:10px;right:11px;opacity:.15;color:var(--seat);
+  font-size:13px;font-weight:700;transition:opacity .15s;
+}
+.seat .nm{font-family:"Shippori Mincho",serif;font-size:16px;font-weight:600;line-height:1.3}
+.seat .rl{font-size:11px;color:var(--ink-3);line-height:1.5}
+.seat .tg{display:flex;flex-wrap:wrap;gap:5px;margin-top:2px}
+.seat .tg span{font-size:10.5px;letter-spacing:.03em;color:var(--seat);background:var(--panel);border:1px solid var(--rule);padding:1px 6px}
+.seat[aria-pressed="true"] .tg span{background:transparent}
+
+/* --- composer --- */
+.composer{display:flex;flex-direction:column;gap:12px}
+textarea{
+  width:100%;min-height:104px;resize:vertical;padding:14px 15px;
+  background:var(--panel);border:1px solid var(--rule);border-radius:0;
+  line-height:1.8;
+}
+textarea::placeholder{color:var(--ink-3)}
+.chips{display:flex;flex-wrap:wrap;gap:7px}
+.chip{
+  cursor:pointer;font-size:12px;padding:4px 11px;color:var(--ink-2);
+  background:transparent;border:1px dashed var(--rule);
+}
+.chip:hover{color:var(--indigo);border-color:var(--indigo);border-style:solid}
+.actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.btn{
+  cursor:pointer;border:1px solid var(--ink);background:var(--ink);color:var(--paper);
+  padding:9px 24px;font-weight:700;letter-spacing:.06em;font-size:14px;
+}
+.btn:hover{background:var(--indigo);border-color:var(--indigo)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn.ghost{background:transparent;color:var(--ink-2);border-color:var(--rule);font-weight:500}
+.btn.ghost:hover{color:var(--shu);border-color:var(--shu);background:transparent}
+.status{font-size:12px;color:var(--ink-3);flex:1;min-width:120px}
+
+/* --- minutes --- */
+.minutes{display:flex;flex-direction:column;gap:16px}
+.asked{
+  background:var(--indigo-soft);border-left:4px solid var(--indigo);
+  padding:12px 15px;font-size:14px;white-space:pre-wrap;
+}
+.asked .lbl{display:block;font-size:10.5px;letter-spacing:.16em;color:var(--indigo);font-weight:700;margin-bottom:3px}
+.answer{background:var(--panel);border:1px solid var(--rule);border-top:3px solid var(--seat,var(--ink-3));box-shadow:var(--shadow)}
+.answer > header{display:flex;align-items:center;gap:11px;padding:13px 16px;border-bottom:1px solid var(--rule)}
+.answer .seal{
+  width:34px;height:34px;flex:none;display:grid;place-items:center;
+  font-family:"Shippori Mincho",serif;font-size:16px;font-weight:800;
+  color:#fff;background:var(--seat);
+}
+.answer h3{font-size:16px;line-height:1.3}
+.answer .rl{font-size:11px;color:var(--ink-3);line-height:1.4}
+.answer .state{margin-left:auto;font-size:11.5px;color:var(--ink-3);letter-spacing:.04em}
+.answer .body{padding:6px 18px 16px}
+.answer .body h4{
+  font-family:"Zen Kaku Gothic New",sans-serif;font-size:11.5px;font-weight:700;letter-spacing:.14em;
+  color:var(--seat);margin:16px 0 4px;
+}
+.answer .body h4:first-child{margin-top:12px}
+.answer .body p{margin:0 0 8px}
+.answer .body ul{margin:0 0 8px;padding-left:1.15em}
+.answer .body li{margin-bottom:4px}
+.answer .body .err{color:var(--shu);font-size:13px}
+.thinking{color:var(--ink-3);font-size:13px;padding:14px 0 4px}
+.thinking::after{content:"…";animation:dots 1.4s steps(4,end) infinite}
+@keyframes dots{0%{opacity:.3}50%{opacity:1}100%{opacity:.3}}
+.followup{display:flex;gap:8px;padding:0 18px 16px;flex-wrap:wrap}
+.followup input{flex:1;min-width:180px;padding:8px 11px;background:var(--paper);border:1px solid var(--rule)}
+.followup button{cursor:pointer;padding:8px 15px;background:transparent;border:1px solid var(--rule);color:var(--ink-2);font-size:13px}
+.followup button:hover{border-color:var(--seat);color:var(--seat)}
+
+.gicho{background:var(--panel);border:1px solid var(--ink);padding:16px 18px}
+.gicho h3{font-size:16px;margin-bottom:6px;display:flex;align-items:center;gap:9px}
+.gicho h3::before{content:"";width:22px;height:2px;background:var(--shu);flex:none}
+.gicho .body h4{color:var(--shu)}
+
+.example-tag{
+  display:inline-block;font-size:10.5px;letter-spacing:.14em;font-weight:700;
+  color:var(--paper);background:var(--ink-3);padding:1px 8px;
+}
+
+/* --- history --- */
+.history ul{list-style:none;margin:0;padding:0;border-top:1px solid var(--rule)}
+.history li{border-bottom:1px solid var(--rule)}
+.history button{
+  width:100%;text-align:left;cursor:pointer;background:transparent;border:0;
+  padding:11px 4px;display:flex;gap:12px;align-items:baseline;
+}
+.history button:hover{background:var(--panel)}
+.history .dt{font-size:11px;color:var(--ink-3);flex:none;font-variant-numeric:tabular-nums}
+.history .qq{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13.5px}
+.history .who{font-size:11px;color:var(--ink-3);flex:none}
+.empty{color:var(--ink-3);font-size:13px;padding:12px 0}
+
+footer{border-top:1px solid var(--rule);padding-top:16px;font-size:11.5px;color:var(--ink-3);line-height:1.9}
+
+dialog{
+  border:1px solid var(--rule);background:var(--panel);color:var(--ink);
+  padding:20px;max-width:440px;width:calc(100% - 32px);box-shadow:var(--shadow);
+}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+dialog h3{font-size:17px;margin-bottom:12px}
+dialog label{display:block;font-size:11.5px;letter-spacing:.1em;color:var(--ink-3);font-weight:700;margin:12px 0 4px}
+dialog input,dialog textarea{width:100%;padding:8px 11px;background:var(--paper);border:1px solid var(--rule)}
+dialog textarea{min-height:120px;line-height:1.7;font-size:13px}
+.dlg-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:18px}
+
+@media (max-width:560px){
+  .wrap{padding:20px 15px 60px;gap:26px}
+  .masthead h1{font-size:23px}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important}
+}
+</style>
+
+<div class="wrap">
+  <header class="masthead">
+    <div class="brand">
+      <span class="mark">賢</span>
+      <div>
+        <h1>賢人会議</h1>
+        <p class="tagline">尊敬するあの人なら、この相談にどう答えるか。</p>
+      </div>
+    </div>
+    <p class="disclaimer">
+      <b>非公式</b>　ここに出る回答は、公開されている著書・発言から推定した「考え方のクセ」をAIが模したものです。
+      ご本人の発言・見解ではなく、ご本人や所属企業とは一切関係ありません。事実確認が必要な内容は必ず一次情報をご確認ください。
+    </p>
+  </header>
+
+  <section>
+    <h2 class="eyebrow">出席者を選ぶ（複数可）</h2>
+    <div class="seats" id="seats"></div>
+  </section>
+
+  <section class="composer">
+    <h2 class="eyebrow">相談する</h2>
+    <textarea id="q" placeholder="いま迷っていることを、そのまま書いてください。&#10;例：営業チームの数字が3か月伸びていない。人を増やすべきか、やり方を変えるべきか。"></textarea>
+    <div class="chips" id="chips"></div>
+    <div class="actions">
+      <button class="btn" id="ask">相談する</button>
+      <button class="btn ghost" id="stop" hidden>中断</button>
+      <span class="status" id="status"></span>
+    </div>
+  </section>
+
+  <section class="minutes" id="minutes"></section>
+
+  <section class="history">
+    <h2 class="eyebrow">これまでの相談</h2>
+    <ul id="hist"></ul>
+    <p class="empty" id="hist-empty">まだ記録はありません。相談すると、ここに残ります。</p>
+  </section>
+
+  <footer>
+    回答はAIによる創作です。実在の人物の発言の引用ではありません。<br>
+    相談内容と回答はこのページ内にのみ保存されます。判断の最終責任はご自身にあります。
+  </footer>
+</div>
+
+<dialog id="dlg">
+  <h3>賢人を追加する</h3>
+  <label for="d-name">名前</label>
+  <input id="d-name" placeholder="例：稲盛和夫">
+  <label for="d-role">肩書き</label>
+  <input id="d-role" placeholder="例：京セラ 創業者">
+  <label for="d-style">この人の考え方（判断の軸・口調）</label>
+  <textarea id="d-style" placeholder="・判断の軸：&#10;・大事にしていること：&#10;・語り口：&#10;知っている範囲で書けば十分です。空欄なら、名前から推定して答えます。"></textarea>
+  <div class="dlg-actions">
+    <button class="btn ghost" id="d-cancel">やめる</button>
+    <button class="btn" id="d-save">追加する</button>
+  </div>
+</dialog>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ---------- 賢人の定義 ---------- */
+  const BUILT_IN = [
+    {
+      id: "jobs", name: "スティーブ・ジョブズ", role: "Apple 共同創業者", seal: "S", hue: "#4A4E52",
+      tags: ["集中", "製品", "妥協しない"],
+      style: [
+        "判断の軸は「何をやらないか」。1000のことにノーと言って、はじめて本当に大事な数個に力が集まると考える。相談者が抱えている項目が多いと、まず数を減らせと迫る。",
+        "顧客体験から逆算する。技術やスペック、社内都合から始めることを嫌う。「どんな体験にしたいか」を先に決め、それに合う手段を後から探す。",
+        "シンプルさは究極の洗練。説明が長いもの、要素が多いもの、会議に人が多いことを『考えが煮詰まっていない証拠』とみなす。",
+        "人については一流だけを集めろという立場。二流を一人入れると二流が集まる、と考える。",
+        "市場調査を当てにしない。人は形にして見せられるまで、自分が何を欲しいかを知らない。",
+        "規模の意義を問う。「それは世界にへこみを残す仕事か」という問い方をする。",
+        "語り口は断定的で二極。素晴らしいか、くだらないか。妥協案・折衷案を最も嫌う。比喩と物語で語り、相手の前提を試すように問い返す。"
+      ].join("\n")
+    },
+    {
+      id: "kumagai", name: "熊谷正寿", role: "GMOインターネットグループ 代表", seal: "熊", hue: "#1F6E58",
+      tags: ["逆算", "No.1", "継続"],
+      style: [
+        "夢や目標は紙に書き、日付を入れる。書いて毎日見るから叶う、という立場。相談には必ず「いつまでに」「どの数字を」を入れさせる。",
+        "人生の年表から逆算して今日を決める。10年後の姿から逆算し、今年・今月・今日に落とす。",
+        "選ぶ領域は「No.1になれるか」で決める。2番手の戦いには長く付き合わない。",
+        "働く仲間を「パートナー」と呼び、価値観の共有（スピリット・行動指針）を組織の土台に置く。制度より先に価値観を揃える。",
+        "継続と規律を経営資源として扱う。健康管理、時間管理、習慣化を成果の前提条件とみなす。",
+        "長期（100年単位）の視点と、日々の細かい数値管理を両立させる。夢を語るだけの人にも、数字だけの人にもならない。",
+        "語り口は丁寧で誠実、体系的。まず紙に書きましょう、と手順から入る。精神論で終わらせず、必ず具体的な仕組みと期限に変換する。"
+      ].join("\n")
+    },
+    {
+      id: "horie", name: "堀江貴文", role: "実業家", seal: "堀", hue: "#B0561F",
+      tags: ["即行動", "時間", "常識を疑う"],
+      style: [
+        "まず動け。準備してから始める人は、たいてい始めない。考える時間を試行回数に変える。",
+        "小さく試して、ダメなら即やめる。情報収集や計画に時間をかけるより、回数をこなすほうが速い。",
+        "常識・世間体・肩書き・前例を疑う。「〜すべき」「普通は」で止まっている前提を最初に壊す。",
+        "時間が最大の資産。無駄な会議、移動、付き合い、自分でやる必要のない作業を容赦なく削る。任せられるものは全部任せる。",
+        "信用と発信が資産になる。やりたいことは公言したほうが人も情報も集まる。",
+        "他人からどう見られるかを気にする時間そのものが損だと考える。",
+        "語り口は率直で短く、断定的。相談の前提そのものを疑ってかかる。「そもそもそれ、やる意味ある？」と切り込み、遠回しな言い方はしない。ただし相手を見下しはせず、具体的な代替案を必ず出す。"
+      ].join("\n")
+    },
+    {
+      id: "fujita", name: "藤田晋", role: "サイバーエージェント 代表", seal: "藤", hue: "#2B579E",
+      tags: ["意思決定", "組織", "勝負勘"],
+      style: [
+        "経営は意思決定の質と量。決めないまま置いておくことが最大のコストだと考える。",
+        "人と組織文化が最大の競争力。若手に権限と機会を先に渡し、経営に参加させる場をつくることで人が育つとみる。",
+        "撤退ラインを先に決めてから賭ける。「いつまでに、どうなっていなければ撤退か」を決めた上で、決めたら中途半端にせず大きく張る。",
+        "短期の利益だけでなく、長期のブランドと事業の陣地取りを見る。数年赤字でも取りに行くべき陣地がある、という判断をする。",
+        "勝負勘を重視する。場の流れ、勢いのある人・事業を見て、勝てる場に資源を寄せ、降りるべき時は降りる。",
+        "採用と人事に経営者自身の時間を使う。誰を、どのポジションに置くかが事業の結果を決めるとみる。",
+        "語り口は落ち着いて現実的。組織と人の視点から入り、数字と人情の両方を見る。派手な言葉は使わず、勝ち筋と撤退条件を淡々と整理する。"
+      ].join("\n")
+    }
+  ];
+
+  const PROMPTS = [
+    "この事業、続けるべきか迷っている",
+    "チームの数字が伸びない",
+    "やりたいことがあるが時間がない",
+    "部下のモチベーションをどう上げるか",
+    "値上げすべきか、量を追うべきか",
+    "今の会社に居続けるべきか"
+  ];
+
+  /* ---------- 状態 ---------- */
+  const LS_SEL = "kenjin.selected";
+  const LS_CUSTOM = "kenjin.custom";
+  const LS_HIST = "kenjin.history";
+
+  let personas = BUILT_IN.slice();
+  let selected = new Set(["jobs"]);
+  let sampleFn = null;
+  let store = null;          // db namespace, or null
+  let running = false;
+  let controller = null;
+  let history = [];          // {id, ts, question, entries:[{pid,name,role,hue,seal,text}], summary}
+
+  const $ = (id) => document.getElementById(id);
+  const seatsEl = $("seats"), minutesEl = $("minutes"), statusEl = $("status");
+  const qEl = $("q"), askBtn = $("ask"), stopBtn = $("stop");
+  const histEl = $("hist"), histEmpty = $("hist-empty"), dlg = $("dlg");
+
+  function readLS(key, fallback) {
+    try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; }
+    catch (e) { return fallback; }
+  }
+  function writeLS(key, value) {
+    try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) { /* 保存できなくても動く */ }
+  }
+
+  /* ---------- 表示ヘルパ ---------- */
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  }
+  // 「■ 見出し」「・箇条書き」を含むプレーンテキストを整形する
+  function format(text) {
+    const lines = String(text).split("\n");
+    let html = "", inList = false;
+    const closeList = () => { if (inList) { html += "</ul>"; inList = false; } };
+    for (const raw of lines) {
+      const line = raw.trim();
+      if (!line) { closeList(); continue; }
+      const head = line.match(/^[■◆●]\s*(.+)$/);
+      const item = line.match(/^(?:[-*・]|\d+[.)])\s*(.+)$/);
+      if (head) { closeList(); html += "<h4>" + esc(head[1]) + "</h4>"; }
+      else if (item) { if (!inList) { html += "<ul>"; inList = true; } html += "<li>" + esc(item[1]) + "</li>"; }
+      else { closeList(); html += "<p>" + esc(line) + "</p>"; }
+    }
+    closeList();
+    return html;
+  }
+  function stamp(ts) {
+    const d = new Date(ts);
+    const p = (n) => String(n).padStart(2, "0");
+    return d.getFullYear() + "/" + p(d.getMonth() + 1) + "/" + p(d.getDate()) + " " + p(d.getHours()) + ":" + p(d.getMinutes());
+  }
+
+  /* ---------- 出席者 ---------- */
+  function renderSeats() {
+    seatsEl.textContent = "";
+    for (const p of personas) {
+      const b = document.createElement("button");
+      b.className = "seat";
+      b.type = "button";
+      b.style.setProperty("--seat", p.hue);
+      b.setAttribute("aria-pressed", selected.has(p.id) ? "true" : "false");
+      b.innerHTML =
+        '<span class="check">●</span>' +
+        '<span class="nm">' + esc(p.name) + "</span>" +
+        '<span class="rl">' + esc(p.role) + "</span>" +
+        '<span class="tg">' + p.tags.map((t) => "<span>" + esc(t) + "</span>").join("") + "</span>";
+      b.addEventListener("click", () => {
+        if (selected.has(p.id)) selected.delete(p.id); else selected.add(p.id);
+        if (selected.size === 0) selected.add(p.id);
+        writeLS(LS_SEL, Array.from(selected));
+        renderSeats();
+      });
+      seatsEl.appendChild(b);
+    }
+    const add = document.createElement("button");
+    add.className = "seat";
+    add.type = "button";
+    add.style.setProperty("--seat", "var(--ink-3)");
+    add.innerHTML = '<span class="nm">＋ 賢人を追加</span><span class="rl">尊敬する人を自分で登録する</span>';
+    add.addEventListener("click", () => dlg.showModal());
+    seatsEl.appendChild(add);
+  }
+
+  /* ---------- プロンプト ---------- */
+  function askPrompt(p, question) {
+    return [
+      "あなたは「" + p.name + "」（" + p.role + "）という人物の【考え方】を模して答えるAIです。本人ではありません。",
+      "以下は、公開されている著書・発言から推定したこの人物の判断の軸と語り口です。",
+      "----",
+      p.style || "（この人物について広く知られている考え方・判断基準・語り口に沿って答えてください。）",
+      "----",
+      "【回答ルール】",
+      "・相談者は日本のビジネスパーソン。日本語で、この人物の一人称で答える。",
+      "・実在の発言をそのまま引用しない。断定的な事実（数字・出来事）を捏造しない。あくまで「この人ならこう考えるだろう」という視点として書く。",
+      "・一般論で終わらせない。他の誰が答えても同じになる内容なら書き直す。この人物特有の判断の軸を必ず使う。",
+      "・相談が抽象的でも、前提を自分で補って具体的に答える。聞き返して終わりにしない。",
+      "・全体で400〜600字程度。次の見出しをこの順・この記号のまま使う。",
+      "",
+      "■ 結論",
+      "（1〜2文で言い切る）",
+      "■ なぜそう考えるか",
+      "（・で始まる箇条書き2〜3点。この人物の判断の軸に沿って）",
+      "■ 今日からやること",
+      "（・で始まる箇条書き2〜3点。今日か明日に実行できる具体的な行動。精神論は書かない）",
+      "■ 逆に聞きたい",
+      "（相談者に投げ返す質問を1つ）",
+      "",
+      "【相談】",
+      question
+    ].join("\n");
+  }
+
+  function summaryPrompt(question, entries) {
+    return [
+      "あなたは会議の議長です。同じ相談に対する各人の回答を読み、相談者が動けるようにまとめてください。",
+      "各回答は実在の人物の考え方を模したAIの創作です。発言として引用せず、「〜の視点では」という書き方をしてください。",
+      "",
+      "【相談】",
+      question,
+      "",
+      "【各人の回答】",
+      entries.map((e) => "◇ " + e.name + "\n" + e.text).join("\n\n"),
+      "",
+      "【出力】300〜400字。次の見出しをこの順・この記号のまま使う。",
+      "■ 一致した点",
+      "（・で始まる箇条書き1〜2点）",
+      "■ 割れた点",
+      "（・で始まる箇条書き1〜2点。誰と誰が、どう違うかを名前を出して書く）",
+      "■ 明日の一手",
+      "（相談者が明日実行する行動を1つだけ、理由付きで。複数出さない）"
+    ].join("\n");
+  }
+
+  /* ---------- 回答カード ---------- */
+  function answerCard(p) {
+    const el = document.createElement("article");
+    el.className = "answer";
+    el.style.setProperty("--seat", p.hue);
+    el.innerHTML =
+      "<header>" +
+        '<span class="seal">' + esc(p.seal) + "</span>" +
+        "<div><h3>" + esc(p.name) + '</h3><div class="rl">' + esc(p.role) + "</div></div>" +
+        '<span class="state">考えています</span>' +
+      "</header>" +
+      '<div class="body"><p class="thinking">考えています</p></div>';
+    return el;
+  }
+
+  function attachFollowup(card, p, getTurns) {
+    const form = document.createElement("form");
+    form.className = "followup";
+    form.innerHTML =
+      '<input placeholder="' + esc(p.name) + 'にもう一歩踏み込んで聞く" aria-label="追加の質問">' +
+      "<button type=\"submit\">深掘りする</button>";
+    form.addEventListener("submit", async (ev) => {
+      ev.preventDefault();
+      const input = form.querySelector("input");
+      const q = input.value.trim();
+      if (!q || running) return;
+      input.value = "";
+      const turns = getTurns();
+      turns.push({ role: "user", content: q });
+
+      const sub = document.createElement("div");
+      sub.className = "body";
+      sub.innerHTML = '<h4>追加の質問</h4><p>' + esc(q) + '</p><div class="thinking">考えています</div>';
+      card.insertBefore(sub, form);
+      const out = sub.querySelector(".thinking");
+
+      setRunning(true, p.name + "が考えています");
+      try {
+        const res = await sampleFn(turns, {
+          cache: false,
+          signal: controller.signal,
+          onText: ({ text }) => { out.className = ""; out.innerHTML = format(text); }
+        });
+        out.className = "";
+        out.innerHTML = format(res.text);
+        turns.push({ role: "assistant", content: res.text });
+      } catch (e) {
+        turns.pop();
+        out.className = "err";
+        out.textContent = errorMessage(e);
+      } finally {
+        setRunning(false, "");
+      }
+    });
+    card.appendChild(form);
+  }
+
+  function errorMessage(e) {
+    const code = e && e.code;
+    if (code === "cancelled") return "中断しました。";
+    if (code === "not_granted") return "この機能を使う許可が下りていません。ページを再読み込みして、Claudeへの問い合わせを許可してください。";
+    if (code === "rate_limited") return "短時間に集中しすぎました。少し待ってから、もう一度お試しください。";
+    if (code === "prompt_too_large") return "相談が長すぎます。要点を短くしてから送ってください。";
+    if (code === "session_expired") return "接続が切れました。ページを再読み込みしてください。";
+    if (code === "refused") return "この内容には答えられませんでした。聞き方を変えてお試しください。";
+    return "うまく答えを受け取れませんでした。もう一度お試しください。";
+  }
+
+  function setRunning(on, msg) {
+    running = on;
+    askBtn.disabled = on;
+    stopBtn.hidden = !on;
+    statusEl.textContent = msg || "";
+    if (on && !controller) controller = new AbortController();
+  }
+
+  /* ---------- 相談する ---------- */
+  async function ask() {
+    const question = qEl.value.trim();
+    if (!question) { qEl.focus(); statusEl.textContent = "相談したいことを書いてください。"; return; }
+    if (!sampleFn) { statusEl.textContent = "この環境ではClaudeに問い合わせできません。claude.ai で公開されたページから開いてください。"; return; }
+    if (running) return;
+
+    const chosen = personas.filter((p) => selected.has(p.id));
+    controller = new AbortController();
+    setRunning(true, chosen.length + "人が考えています（1分ほどかかります）");
+
+    minutesEl.textContent = "";
+    const head = document.createElement("div");
+    head.className = "asked";
+    head.innerHTML = '<span class="lbl">相談</span>' + esc(question);
+    minutesEl.appendChild(head);
+
+    const cards = chosen.map((p) => {
+      const c = answerCard(p);
+      minutesEl.appendChild(c);
+      return c;
+    });
+
+    const results = await Promise.all(chosen.map((p, i) => {
+      const card = cards[i];
+      const body = card.querySelector(".body");
+      const state = card.querySelector(".state");
+      const prompt = askPrompt(p, question);
+      return sampleFn(prompt, {
+        cache: false,
+        signal: controller.signal,
+        onText: ({ text }) => { state.textContent = "回答中"; body.innerHTML = format(text); }
+      }).then((res) => {
+        state.textContent = "回答";
+        body.innerHTML = format(res.text);
+        const turns = [{ role: "user", content: prompt }, { role: "assistant", content: res.text }];
+        attachFollowup(card, p, () => turns);
+        return { pid: p.id, name: p.name, role: p.role, hue: p.hue, seal: p.seal, text: res.text };
+      }).catch((e) => {
+        state.textContent = "―";
+        body.innerHTML = '<p class="err">' + esc(errorMessage(e)) + "</p>";
+        return null;
+      });
+    }));
+
+    const entries = results.filter(Boolean);
+    let summary = "";
+
+    if (entries.length >= 2) {
+      const gicho = document.createElement("div");
+      gicho.className = "gicho";
+      gicho.innerHTML = "<h3>議長のまとめ</h3><div class=\"body\"><p class=\"thinking\">まとめています</p></div>";
+      minutesEl.appendChild(gicho);
+      const gbody = gicho.querySelector(".body");
+      statusEl.textContent = "議論をまとめています";
+      try {
+        const res = await sampleFn(summaryPrompt(question, entries), {
+          cache: false,
+          signal: controller.signal,
+          onText: ({ text }) => { gbody.innerHTML = format(text); }
+        });
+        summary = res.text;
+        gbody.innerHTML = format(summary);
+      } catch (e) {
+        gbody.innerHTML = '<p class="err">' + esc(errorMessage(e)) + "</p>";
+      }
+    }
+
+    setRunning(false, "");
+    controller = null;
+    if (entries.length) await saveSession({ id: "s" + Date.now(), ts: Date.now(), question, entries, summary });
+  }
+
+  /* ---------- 記録 ---------- */
+  async function saveSession(rec) {
+    history.unshift(rec);
+    history = history.slice(0, 100);
+    writeLS(LS_HIST, history);
+    renderHistory();
+    if (store) {
+      try { await store.collection("sodan").doc(rec.id).set(rec); } catch (e) { /* ローカルには残っている */ }
+    }
+  }
+
+  function renderHistory() {
+    histEl.textContent = "";
+    histEmpty.hidden = history.length > 0;
+    for (const rec of history.slice(0, 30)) {
+      const li = document.createElement("li");
+      const b = document.createElement("button");
+      b.type = "button";
+      b.innerHTML =
+        '<span class="dt">' + esc(stamp(rec.ts)) + "</span>" +
+        '<span class="qq">' + esc(rec.question) + "</span>" +
+        '<span class="who">' + esc(rec.entries.map((e) => e.name.split(" ")[0]).join("・")) + "</span>";
+      b.addEventListener("click", () => showSaved(rec));
+      li.appendChild(b);
+      histEl.appendChild(li);
+    }
+  }
+
+  function showSaved(rec) {
+    minutesEl.textContent = "";
+    const head = document.createElement("div");
+    head.className = "asked";
+    head.innerHTML = '<span class="lbl">相談　' + esc(stamp(rec.ts)) + '</span>' + esc(rec.question);
+    minutesEl.appendChild(head);
+    for (const e of rec.entries) {
+      const card = answerCard(e);
+      card.querySelector(".state").textContent = "回答";
+      card.querySelector(".body").innerHTML = format(e.text);
+      minutesEl.appendChild(card);
+    }
+    if (rec.summary) {
+      const g = document.createElement("div");
+      g.className = "gicho";
+      g.innerHTML = "<h3>議長のまとめ</h3><div class=\"body\">" + format(rec.summary) + "</div>";
+      minutesEl.appendChild(g);
+    }
+    minutesEl.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  /* ---------- 起動時の見本 ---------- */
+  function renderExample() {
+    minutesEl.textContent = "";
+    const head = document.createElement("div");
+    head.className = "asked";
+    head.innerHTML = '<span class="lbl">相談（表示例）</span>新しい事業を始めたいが、既存の業務が忙しくて手がつけられない。';
+    minutesEl.appendChild(head);
+
+    const demo = [
+      { p: BUILT_IN[0], text: "■ 結論\n忙しいのが問題じゃない。やめると決めていない仕事が多すぎるのが問題だ。\n\n■ なぜそう考えるか\n・時間は増やせない。増やせるのは、やらないと決めた数だけだ。\n・本当にやりたいことなら、他の何かを捨ててでも今日始めているはずだ。\n\n■ 今日からやること\n・いま抱えている仕事を全部書き出して、上から3つ以外に線を引く。\n・その3つに入らなかった仕事を、誰かに渡すか、止めるかを今日決める。\n\n■ 逆に聞きたい\nその新しい事業は、3年後にあなたの会社の中心になっているものか？" },
+      { p: BUILT_IN[2], text: "■ 結論\n「時間がない」は、優先順位が低いというだけの話。今週末にプロトタイプを作って人に見せたほうが早い。\n\n■ なぜそう考えるか\n・準備が整ってから始めようとする人は、たいてい一生始めない。\n・やってみないと、その事業に価値があるかどうかは誰にも分からない。\n\n■ 今日からやること\n・完成形を目指さず、1ページの説明資料だけ作って見込み客3人に送る。\n・既存業務で自分がやらなくていい作業を1つ選んで、明日から人に振る。\n\n■ 逆に聞きたい\nその事業、なぜまだ誰も始めていないと思う？" }
+    ];
+    for (const d of demo) {
+      const card = answerCard(d.p);
+      card.querySelector(".state").innerHTML = '<span class="example-tag">表示例</span>';
+      card.querySelector(".body").innerHTML = format(d.text);
+      minutesEl.appendChild(card);
+    }
+    const note = document.createElement("p");
+    note.className = "empty";
+    note.textContent = "↑ これは動きを見てもらうための表示例です。上の欄に相談を書いて「相談する」を押すと、実際の回答が入ります。";
+    minutesEl.appendChild(note);
+  }
+
+  /* ---------- 賢人の追加 ---------- */
+  function setupDialog() {
+    $("d-cancel").addEventListener("click", () => dlg.close());
+    $("d-save").addEventListener("click", () => {
+      const name = $("d-name").value.trim();
+      if (!name) { $("d-name").focus(); return; }
+      const p = {
+        id: "c" + Date.now(),
+        name: name,
+        role: $("d-role").value.trim() || "尊敬する人",
+        seal: name.slice(0, 1),
+        hue: "#6B5B95",
+        tags: ["自分で追加"],
+        style: $("d-style").value.trim(),
+        custom: true
+      };
+      const custom = readLS(LS_CUSTOM, []);
+      custom.push(p);
+      writeLS(LS_CUSTOM, custom);
+      personas = BUILT_IN.concat(custom);
+      selected.add(p.id);
+      writeLS(LS_SEL, Array.from(selected));
+      renderSeats();
+      $("d-name").value = ""; $("d-role").value = ""; $("d-style").value = "";
+      dlg.close();
+    });
+  }
+
+  /* ---------- 初期化 ---------- */
+  function init() {
+    personas = BUILT_IN.concat(readLS(LS_CUSTOM, []));
+    const savedSel = readLS(LS_SEL, null);
+    if (Array.isArray(savedSel) && savedSel.length) {
+      const ids = new Set(personas.map((p) => p.id));
+      const keep = savedSel.filter((id) => ids.has(id));
+      if (keep.length) selected = new Set(keep);
+    }
+    history = readLS(LS_HIST, []);
+
+    renderSeats();
+    renderHistory();
+    renderExample();
+    setupDialog();
+
+    for (const t of PROMPTS) {
+      const c = document.createElement("button");
+      c.className = "chip";
+      c.type = "button";
+      c.textContent = t;
+      c.addEventListener("click", () => { qEl.value = t; qEl.focus(); });
+      $("chips").appendChild(c);
+    }
+
+    askBtn.addEventListener("click", ask);
+    stopBtn.addEventListener("click", () => { if (controller) controller.abort(); });
+    qEl.addEventListener("keydown", (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") ask();
+    });
+
+    statusEl.textContent = "準備しています";
+    const c = window.claude;
+    if (!c || typeof c.use !== "function") {
+      statusEl.textContent = "このページを claude.ai で開くと、実際に回答が生成されます。";
+      return;
+    }
+    c.use("sample").then((fn) => {
+      sampleFn = fn;
+      statusEl.textContent = fn ? "" : "この環境ではClaudeに問い合わせできません。";
+    }).catch(() => { statusEl.textContent = "この環境ではClaudeに問い合わせできません。"; });
+
+    c.use("db").then((db) => {
+      if (!db) return;
+      store = db;
+      return db.collection("sodan").orderBy("ts", "desc").limit(50).get().then((snap) => {
+        const remote = snap.docs.map((d) => d.data()).filter((d) => d && d.question && Array.isArray(d.entries));
+        if (!remote.length) return;
+        const seen = new Set(history.map((h) => h.id));
+        for (const r of remote) if (!seen.has(r.id)) history.push(r);
+        history.sort((a, b) => b.ts - a.ts);
+        writeLS(LS_HIST, history);
+        renderHistory();
+      });
+    }).catch(() => { /* 記録はローカルに残す */ });
+  }
+
+  init();
+})();
+</script>
