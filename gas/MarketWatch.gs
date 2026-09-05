@@ -6,6 +6,7 @@
  * 再計算し、週次でダイジェストメールを送る。
  *
  * 作られるシート:
+ *   物件マスタ   … 定点観測する物件（銘柄）の一覧。売出・成約の集計がぶら下がる
  *   成約データ   … APIから取り込んだ1件1行の明細（重複は取り込まない）
  *   売出ウォッチ … 現在売り出し中の物件の表。坪単価・経過日数・値下げ率は自動計算
  *   価格履歴     … 売出価格を書き換えるたびに自動で1行たまる改定履歴
@@ -35,11 +36,39 @@ var CITIES = [
 /** 取り込むのはマンションのみ。 */
 var TARGET_TYPES = ['中古マンション等'];
 
+var SHEET_BUILDING = '物件マスタ';
 var SHEET_DEAL = '成約データ';
 var SHEET_WATCH = '売出ウォッチ';
 var SHEET_HISTORY = '価格履歴';
 var SHEET_SUMMARY = '月次サマリ';
 var SHEET_MWLOG = '_watchlog';
+
+/**
+ * 物件マスタ。定点観測したい物件を1棟1行で登録する。
+ * 「地区名」「竣工年」は成約データとの照合キー。B_ 定数は0始まりの列位置。
+ */
+var HEAD_BUILDING = [
+  '物件名', '区', '地区名', '竣工年', '総戸数', 'ウォッチ区分', 'メモ',
+  '売出中(件)', '売出坪単価(万円)', '90日超(件)',
+  '成約(件)', '成約坪単価(万円)', '成約レンジ(万円)', '直近成約', '更新日時'
+];
+
+var B_NAME = 0;
+var B_WARD = 1;
+var B_DISTRICT = 2;
+var B_BUILT = 3;
+var B_MODE = 5;
+var B_ON_SALE = 7;
+var B_ON_SALE_TSUBO = 8;
+var B_STALE = 9;
+var B_DEALS = 10;
+var B_DEAL_TSUBO = 11;
+var B_DEAL_RANGE = 12;
+var B_LAST_DEAL = 13;
+var B_UPDATED = 14;
+
+/** 成約データとの照合で許す竣工年のズレ（年）。 */
+var BUILT_TOLERANCE = 1;
 
 var HEAD_DEAL = [
   '取込日時', '時期', '区', '地区名', '取引価格(円)', '専有面積(㎡)', '坪単価(万円)',
@@ -78,9 +107,28 @@ var HEAD_MWLOG = ['実行日時', '処理', '対象', '取得件数', '追加件
 
 // ---------------------------------------------------------------- 入口
 
+/** スプレッドシートを開いたときにメニューを出す。 */
+function onOpen() {
+  SpreadsheetApp.getUi()
+    .createMenu('マンションウォッチ')
+    .addItem('集計を更新する', 'refreshAll')
+    .addItem('地区名の一覧を見る', 'listDistrictNames')
+    .addSeparator()
+    .addItem('メール文面を確認する（送信しない）', 'previewMarketDigest')
+    .addToUi();
+}
+
+/** 取り込みはせず、手元のデータだけで集計をやり直す。メニューから呼ぶ。 */
+function refreshAll() {
+  refreshWatchlist();
+  rebuildSummary();
+  rebuildBuildingStats();
+}
+
 /** 最初に1回だけ実行する。シートと見出しを作る。 */
 function setupMarketWatch() {
   var ss = book_();
+  sheet_(ss, SHEET_BUILDING, HEAD_BUILDING);
   sheet_(ss, SHEET_DEAL, HEAD_DEAL);
   sheet_(ss, SHEET_WATCH, HEAD_WATCH);
   sheet_(ss, SHEET_HISTORY, HEAD_HISTORY);
@@ -101,6 +149,7 @@ function importLatestTransactions() {
   }
   rebuildSummary();
   refreshWatchlist();
+  rebuildBuildingStats();
   log_('取込', periods.length + '四半期', total, added, '');
   Logger.log('取得 ' + total + '件 / 新規 ' + added + '件');
 }
@@ -262,6 +311,94 @@ function rebuildSummary() {
   if (rows.length) sh.getRange(2, 1, rows.length, HEAD_SUMMARY.length).setValues(rows);
 }
 
+/**
+ * 物件マスタの集計をやり直す。
+ *
+ * 売出中の数字は `売出ウォッチ` の物件名を突き合わせて出す（完全一致）。
+ * 成約の数字は `成約データ`（国交省API）から拾うが、APIには建物名が入っていないため
+ * 「区 ＋ 地区名 ＋ 竣工年（±BUILT_TOLERANCE年）」が一致する取引を候補として集める。
+ * 同じ町丁目に同年竣工の別のマンションがあれば、それも混ざる。
+ * あくまで目安であり、1件1件が確実にその物件のものだとは言えない。
+ */
+function rebuildBuildingStats() {
+  var ss = book_();
+  var bs = sheet_(ss, SHEET_BUILDING, HEAD_BUILDING);
+  var last = bs.getLastRow();
+  if (last < 2) return;
+
+  var range = bs.getRange(2, 1, last - 1, HEAD_BUILDING.length);
+  var buildings = range.getValues();
+  var deals = readSheet_(ss, SHEET_DEAL, HEAD_DEAL);
+  var watch = readSheet_(ss, SHEET_WATCH, HEAD_WATCH);
+  var now = new Date();
+
+  for (var i = 0; i < buildings.length; i++) {
+    var b = buildings[i];
+    if (!b[B_NAME]) continue;
+    if (String(b[B_MODE]) === '停止') continue;
+
+    // --- 売出中（物件名の完全一致） ---
+    var mine = watch.filter(function (r) {
+      return String(r[C_NAME]) === String(b[B_NAME]);
+    });
+    var live = mine.filter(function (r) {
+      var st = String(r[C_STATUS]);
+      return st !== '成約' && st !== '取下';
+    });
+    b[B_ON_SALE] = live.length;
+    b[B_ON_SALE_TSUBO] = live.length
+      ? round_(avg_(live.map(function (r) { return Number(r[C_TSUBO]); }).filter(Boolean)), 1)
+      : '';
+    b[B_STALE] = live.filter(function (r) { return Number(r[C_DAYS]) >= 90; }).length;
+
+    // --- 成約（区＋地区名＋竣工年で照合） ---
+    var built = Number(b[B_BUILT]);
+    var hits = deals.filter(function (r) {
+      if (String(r[2]) !== String(b[B_WARD])) return false;
+      if (String(r[3]) !== String(b[B_DISTRICT])) return false;
+      if (!built) return true;
+      var y = year_(r[8]);
+      return y && Math.abs(y - built) <= BUILT_TOLERANCE;
+    });
+
+    b[B_DEALS] = hits.length;
+    if (hits.length) {
+      var tsubos = hits.map(function (r) { return Number(r[6]); }).filter(Boolean);
+      var prices = hits.map(function (r) { return Number(r[4]) / 10000; }).filter(Boolean);
+      b[B_DEAL_TSUBO] = round_(median_(tsubos), 1);
+      b[B_DEAL_RANGE] = prices.length
+        ? round_(Math.min.apply(null, prices), 0) + '〜' + round_(Math.max.apply(null, prices), 0)
+        : '';
+      b[B_LAST_DEAL] = hits.map(function (r) { return String(r[1]); }).sort().pop();
+    } else {
+      b[B_DEAL_TSUBO] = '';
+      b[B_DEAL_RANGE] = '';
+      b[B_LAST_DEAL] = '';
+    }
+    b[B_UPDATED] = now;
+  }
+  range.setValues(buildings);
+}
+
+/**
+ * 成約データに実際に入っている「区 ＋ 地区名」を一覧でログに出す。
+ * 物件マスタの「地区名」は、この表記と1文字も違わないよう合わせること
+ * （例：港区の「南麻布」。丁目は入らない）。
+ */
+function listDistrictNames() {
+  var deals = readSheet_(book_(), SHEET_DEAL, HEAD_DEAL);
+  var seen = {};
+  for (var i = 0; i < deals.length; i++) {
+    var k = deals[i][2] + '\t' + deals[i][3];
+    seen[k] = (seen[k] || 0) + 1;
+  }
+  var lines = Object.keys(seen).sort().map(function (k) {
+    return k.replace('\t', ' / ') + '  (' + seen[k] + '件)';
+  });
+  Logger.log('成約データにある地区名 ' + lines.length + '種\n' + lines.join('\n'));
+  return lines;
+}
+
 /** 売出ウォッチ表の自動列を、全行まとめて計算し直す。 */
 function refreshWatchlist() {
   var ss = book_();
@@ -387,6 +524,41 @@ function buildDigestHtml_(ss) {
   out.push('<p>都心3区（千代田・中央・港）の高級マンション（' +
     (minPrice / 100000000) + '億円以上）のウォッチ結果です。</p>');
 
+  // 銘柄別（物件マスタ）。定点観測している物件を先頭に出す
+  var bs = readSheet_(ss, SHEET_BUILDING, HEAD_BUILDING).filter(function (b) {
+    return b[B_NAME] && String(b[B_MODE]) !== '停止';
+  });
+  if (bs.length) {
+    bs.sort(function (x, y) {
+      var rank = function (b) { return String(b[B_MODE]) === '重点' ? 0 : 1; };
+      return rank(x) - rank(y) || String(x[B_WARD]).localeCompare(String(y[B_WARD]));
+    });
+    out.push('<h3>定点観測している物件 ' + bs.length + '棟</h3>');
+    out.push(table_(
+      ['物件名', '区', '売出中', '売出坪単価', '90日超', '成約', '成約坪単価', '成約レンジ(万円)', '直近成約'],
+      bs.map(function (b) {
+        return [
+          b[B_NAME], b[B_WARD], b[B_ON_SALE], b[B_ON_SALE_TSUBO], b[B_STALE],
+          b[B_DEALS], b[B_DEAL_TSUBO], b[B_DEAL_RANGE], b[B_LAST_DEAL]
+        ];
+      })));
+
+    // 売出坪単価が成約坪単価をはっきり上回っている＝強気に出ている銘柄
+    var rich = bs.filter(function (b) {
+      var a = Number(b[B_ON_SALE_TSUBO]);
+      var d = Number(b[B_DEAL_TSUBO]);
+      return a && d && (a - d) / d >= 0.10;
+    });
+    if (rich.length) {
+      out.push('<p>売出坪単価が成約実績を <b>10%以上</b> 上回っている銘柄：' +
+        rich.map(function (b) {
+          return esc_(b[B_NAME]) + '（+' +
+            round_((Number(b[B_ON_SALE_TSUBO]) - Number(b[B_DEAL_TSUBO])) /
+              Number(b[B_DEAL_TSUBO]) * 100, 0) + '%）';
+        }).join('、') + '</p>');
+    }
+  }
+
   // 直近の成約サマリ
   var sum = ss.getSheetByName(SHEET_SUMMARY);
   if (sum && sum.getLastRow() > 1) {
@@ -454,6 +626,8 @@ function buildDigestHtml_(ss) {
     '※ 成約データは国土交通省「不動産情報ライブラリ」の取引価格・成約価格情報です。' +
     '公表は四半期ごとで、直近の取引が反映されるまで数カ月かかります。<br>' +
     '※ 売出ウォッチは手入力の表です。数値はそのまま集計しています。<br>' +
+    '※ 銘柄別の成約は「区＋地区名＋竣工年」で拾った候補です。APIに建物名が' +
+    '入らないため、同じ町丁目に同年竣工の別棟があると混ざります。目安としてご覧ください。<br>' +
     '※ 乖離率は「成約価格が当初の売出価格からどれだけ動いたか」です。' +
     'マイナスが大きいほど、最初の売出価格が強気だったことを示します。</p>');
   return out.join('\n');
@@ -490,6 +664,13 @@ function sheet_(ss, name, head) {
     sh.setFrozenRows(1);
   }
   return sh;
+}
+
+/** シートの2行目以降を配列で返す。空なら空配列。 */
+function readSheet_(ss, name, head) {
+  var sh = ss.getSheetByName(name);
+  if (!sh || sh.getLastRow() < 2) return [];
+  return sh.getRange(2, 1, sh.getLastRow() - 1, head.length).getValues();
 }
 
 function existingKeys_(sh) {
