@@ -74,3 +74,10 @@ value の JSON キー対応:
 Claude に依存せず動き続けるため、恒久運用にはこちらが確実です。
 
 導入手順は `gas/README.md` を参照。
+
+## 開発環境（Claude Code プラグイン）
+
+このリポジトリでは Claude Code のプラグイン **Superpowers**
+(`superpowers@claude-plugins-official`) を有効にしています。
+設定は `.claude/settings.json`、詳細と各自の環境での有効化手順は
+`docs/superpowers-setup.md` を参照。
