@@ -249,17 +249,21 @@
 
   /* ---- 写真から記録 ---- */
   .photo-cta{
-    display:flex;align-items:center;gap:10px;width:100%;
-    padding:12px 14px;border:1px solid var(--accent);background:var(--accent-soft);
-    border-radius:3px;text-align:left;
+    display:flex;flex-wrap:wrap;align-items:center;gap:10px 12px;width:100%;
+    padding:12px 14px;border:1px solid var(--accent);background:var(--accent-soft);border-radius:3px;
   }
-  .photo-cta .ic{font-size:19px;line-height:1}
-  .photo-cta .tx{display:flex;flex-direction:column;gap:1px}
+  .photo-cta .tx{flex:1 1 180px;display:flex;flex-direction:column;gap:1px}
   .photo-cta b{font-size:14px;font-weight:700}
-  .photo-cta small{font-size:11.5px;color:var(--muted)}
-  .photo-cta:hover{background:var(--card)}
+  .photo-cta small{font-size:11.5px;color:var(--muted);line-height:1.45}
+  .photo-btns{display:flex;gap:6px;flex:1 1 auto}
+  .photo-btns button{flex:1;padding:10px 12px;border-radius:3px;font-size:13px;font-weight:700;white-space:nowrap}
+  .photo-btns .shoot{background:var(--accent);color:var(--paper)}
+  .photo-btns .shoot:hover{filter:brightness(1.08)}
+  .photo-btns .pick{border:1px solid var(--hair);background:var(--card);color:var(--ink)}
+  .photo-btns .pick:hover{border-color:var(--accent);color:var(--accent)}
+  .photo-mini-row{display:flex;gap:6px;flex-wrap:wrap}
   .photo-mini{
-    align-self:flex-start;font-size:12px;font-weight:700;color:var(--accent);
+    font-size:12px;font-weight:700;color:var(--accent);
     border:1px solid var(--hair);border-radius:99px;padding:5px 12px;
   }
   .photo-mini:hover{border-color:var(--accent);background:var(--accent-soft)}
@@ -378,13 +382,16 @@
     <div class="wdelta" id="wdelta"></div>
   </section>
 
-  <button class="photo-cta" id="photoCta" hidden>
-    <span class="ic">📷</span>
-    <span class="tx">
+  <div class="photo-cta" id="photoCta" hidden>
+    <div class="tx">
       <b>写真から記録する</b>
-      <small>食事の写真を撮ると、料理とカロリーを読み取って候補にします</small>
-    </span>
-  </button>
+      <small>料理とカロリーを読み取って、確認してから記録します</small>
+    </div>
+    <div class="photo-btns">
+      <button class="shoot" id="btnShoot">📷 撮る</button>
+      <button class="pick" id="btnPick">写真を選ぶ</button>
+    </div>
+  </div>
 
   <section class="facts" id="facts">
     <div class="facts-top">
@@ -432,6 +439,7 @@
     </div>
   </div>
   <input type="file" id="photoInput" accept="image/*" hidden>
+  <input type="file" id="cameraInput" accept="image/*" capture="environment" hidden>
 
   <footer>
     <span id="storageState"><span class="dot"></span>保存先を確認中…</span>
@@ -871,7 +879,10 @@
           '<button data-submit="' + s.k + '">記録</button>' +
         '</div>' +
         '<div class="sug">' + foodChips(s.k) + '</div>' +
-        (canPhoto() ? '<button class="photo-mini" data-photo="' + s.k + '">📷 写真から読み取る</button>' : '') +
+        (canPhoto() ? '<div class="photo-mini-row">' +
+            '<button class="photo-mini" data-photo="' + s.k + '" data-mode="camera">📷 撮る</button>' +
+            '<button class="photo-mini" data-photo="' + s.k + '" data-mode="library">写真を選ぶ</button>' +
+          '</div>' : '') +
         '<p class="hint">候補をタップするとそのまま記録できます。名前を入力すると一覧から探します。</p>' +
       '</div>';
     }
@@ -1245,10 +1256,11 @@
     upstream_error:"読み取りに失敗しました。少し時間をおいてお試しください。"
   };
 
-  function openPhoto(slot){
+  function openPhoto(slot, mode){
     photo.slot = slot || slotByHour();
-    el("photoInput").value = "";
-    el("photoInput").click();
+    var input = el(mode === "camera" ? "cameraInput" : "photoInput");
+    input.value = "";
+    input.click();
   }
 
   function shrink(file, cb){
@@ -1375,14 +1387,17 @@
     el("sheetBody").innerHTML = body;
   }
 
-  el("photoCta").addEventListener("click", function(){ openPhoto(slotByHour()); });
+  el("btnShoot").addEventListener("click", function(){ openPhoto(slotByHour(), "camera"); });
+  el("btnPick").addEventListener("click", function(){ openPhoto(slotByHour(), "library"); });
   el("sheetClose").addEventListener("click", closeSheet);
   el("sheet").addEventListener("click", function(e){ if (e.target === this) closeSheet(); });
   document.addEventListener("keydown", function(e){ if (e.key === "Escape" && photo.open) closeSheet(); });
 
-  el("photoInput").addEventListener("change", function(){
-    var f = this.files && this.files[0];
-    if (f) startPhoto(f);
+  ["photoInput","cameraInput"].forEach(function(id){
+    el(id).addEventListener("change", function(){
+      var f = this.files && this.files[0];
+      if (f) startPhoto(f);
+    });
   });
 
   el("sheetBody").addEventListener("click", function(e){
@@ -1480,7 +1495,7 @@
       if (ui.open) focusFirst(ui.open);
       return;
     }
-    if (t.dataset.photo){ openPhoto(t.dataset.photo); return; }
+    if (t.dataset.photo){ openPhoto(t.dataset.photo, t.dataset.mode); return; }
     if (t.dataset.add){ addItem(ui.open, t.dataset.add, t.dataset.kcal); return; }
     if (t.dataset.submit){ addItem(t.dataset.submit, ui.q, ui.kcal); return; }
     if (t.dataset.ex){
