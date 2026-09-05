@@ -74,3 +74,12 @@ value の JSON キー対応:
 Claude に依存せず動き続けるため、恒久運用にはこちらが確実です。
 
 導入手順は `gas/README.md` を参照。
+
+## AI エージェントで作業する場合
+
+Claude Code と Codex のどちらで開いても同じルールで作業できるようにしてあります。
+
+- `AGENTS.md` … 共通ルールの実体（Codex はこれを読みます）
+- `CLAUDE.md` … `AGENTS.md` を読み込むだけの薄いファイル（Claude Code 用）
+
+ルールを変えるときは `AGENTS.md` だけを編集してください。
