@@ -131,6 +131,7 @@ Claude に依存せず動き続けるため、恒久運用にはこちらが確�
 ## 関連ドキュメント
 
 - 導入手順：`docs/market-watch-setup.md`
+- 物件マスタの初期リスト（23件）：`docs/building-master-seed.md` / `docs/building-master-seed.tsv`
 - 現時点の市況スナップショット：`docs/market-snapshot-2026-09.md`
 
 ## この環境からの直接取得について
