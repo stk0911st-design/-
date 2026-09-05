@@ -533,6 +533,7 @@
   /* ---------------- state ---------------- */
   var state = {
     db:null, mode:"loading", sample:null, imgLimits:null,
+    inViewer: !!(window.claude && typeof window.claude.use === "function"),
     target:2000, targetWeight:null,
     days:{},              // "YYYY-MM-DD" -> {date, items:[], exercise:[], weight, fat}
     sel:dateKey(new Date()),
@@ -1220,7 +1221,29 @@
   }
 
   /* ---------------- 写真から記録 ---------------- */
-  function canPhoto(){ return !!(state.sample && state.imgLimits); }
+  function canPhoto(){ return state.inViewer; }
+
+  var samplePromise = null;
+  function ensureSample(){
+    if (state.sample) return Promise.resolve(state.sample);
+    if (!state.inViewer) return Promise.resolve(null);
+    if (!samplePromise){
+      samplePromise = window.claude.use("sample").then(function(sm){
+        if (!sm) return null;
+        state.sample = sm;
+        if (typeof sm.limits !== "function") return sm;
+        return sm.limits().then(function(lim){
+          if (lim && lim.images){
+            state.imgLimits = lim.images;
+            var types = (lim.images.mediaTypes || []).join(",");
+            if (types){ el("photoInput").accept = types; el("cameraInput").accept = types; }
+          }
+          return sm;
+        }, function(){ return sm; });
+      }, function(){ return null; });
+    }
+    return samplePromise;
+  }
 
   function slotByHour(){
     var h = new Date().getHours();
@@ -1253,7 +1276,8 @@
     prompt_too_large:"画像が大きすぎました。別の写真でお試しください。",
     session_expired:"接続が切れました。ページを開き直してください。",
     sampling_disabled:"写真の読み取りが利用できない状態です。手で入力してください。",
-    upstream_error:"読み取りに失敗しました。少し時間をおいてお試しください。"
+    upstream_error:"読み取りに失敗しました。少し時間をおいてお試しください。",
+    no_sample:"この画面では写真の読み取りが使えませんでした。ページを開き直しても直らない場合は、下の「食べたもの」欄から手で入力してください。"
   };
 
   function openPhoto(slot, mode){
@@ -1300,7 +1324,13 @@
 
   function analyze(){
     photo.ctl = new AbortController();
-    state.sample.json(PROMPT, {images:[photo.blob], modelTier:"default", signal:photo.ctl.signal})
+    var ctl = photo.ctl;
+    ensureSample().then(function(sm){
+      if (!sm){
+        var e = new Error("no sample"); e.code = "no_sample"; throw e;
+      }
+      return sm.json(PROMPT, {images:[photo.blob], modelTier:"default", signal:ctl.signal});
+    })
       .then(function(res){
         var list = (res && Array.isArray(res.items)) ? res.items : [];
         photo.items = list.map(function(x){
@@ -1573,12 +1603,7 @@
   render();
 
   if (window.claude && typeof window.claude.use === "function"){
-    window.claude.use("sample").then(function(sample){
-      if (!sample || typeof sample.limits !== "function") return;
-      return sample.limits().then(function(lim){
-        if (lim && lim.images){ state.sample = sample; state.imgLimits = lim.images; render(); }
-      });
-    }).catch(function(){});
+    ensureSample();
 
     el("storageState").innerHTML = '<span class="dot" style="background:var(--muted)"></span>保存先を確認中…';
     window.claude.use("db").then(function(db){
