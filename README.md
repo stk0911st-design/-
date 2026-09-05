@@ -81,4 +81,4 @@ Claude に依存せず動き続けるため、恒久運用にはこちらが確�
 
 | 仕組み | 内容 | ドキュメント |
 | --- | --- | --- |
-| コンディション記録 | ガーミンの数値を毎朝入力して蓄積し、7日平均や増減を見る（個人用・スプレッドシートは日報とは別に作る） | [docs/garmin-condition.md](docs/garmin-condition.md) |
+| コンディション記録 | ガーミンの数値を毎朝入力して蓄積し、7日平均・推移・一覧で振り返る（個人用）。公開済みの非公開ページを使う方式と、Apps Script 版の2通り | [docs/garmin-condition.md](docs/garmin-condition.md) |

@@ -1,0 +1,700 @@
+<title>コンディション手帳</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --ground: #eceef0;
+    --surface: #ffffff;
+    --surface-sunk: #f4f6f7;
+    --line: #d5dade;
+    --line-soft: #e5e9eb;
+    --ink: #171b1e;
+    --ink-soft: #4d585f;
+    --ink-mute: #77838a;
+    --accent: #1f5f7a;
+    --accent-soft: #d9e6ed;
+    --up: #2c6e57;
+    --down: #9c4221;
+    --shadow: 0 1px 2px rgba(23, 27, 30, .06), 0 8px 24px rgba(23, 27, 30, .05);
+    --sans: "Zen Kaku Gothic New", -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #14181b;
+      --surface: #1b2125;
+      --surface-sunk: #171c20;
+      --line: #2e363b;
+      --line-soft: #262d32;
+      --ink: #e7ecee;
+      --ink-soft: #b0bbc1;
+      --ink-mute: #808d95;
+      --accent: #63b0d1;
+      --accent-soft: #1f3742;
+      --up: #59b18d;
+      --down: #d98259;
+      --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px rgba(0, 0, 0, .25);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #14181b;
+    --surface: #1b2125;
+    --surface-sunk: #171c20;
+    --line: #2e363b;
+    --line-soft: #262d32;
+    --ink: #e7ecee;
+    --ink-soft: #b0bbc1;
+    --ink-mute: #808d95;
+    --accent: #63b0d1;
+    --accent-soft: #1f3742;
+    --up: #59b18d;
+    --down: #d98259;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px rgba(0, 0, 0, .25);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    padding: 20px 16px 64px;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.65;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  .page { max-width: 620px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+
+  header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  h1 { font-size: 19px; font-weight: 700; margin: 0; letter-spacing: .02em; }
+  .status {
+    font-family: var(--mono); font-size: 12px; color: var(--ink-mute);
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ink-mute); }
+  .dot.done { background: var(--up); }
+  .dot.todo { background: var(--accent); }
+
+  section {
+    background: var(--surface);
+    border: 1px solid var(--line-soft);
+    border-radius: 10px;
+    padding: 16px;
+    box-shadow: var(--shadow);
+  }
+  section > h2 {
+    font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--ink-mute); margin: 0 0 14px;
+  }
+  .h2row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
+  .h2row h2 { margin: 0; font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-mute); }
+
+  .fields { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px 10px; }
+  .field.wide { grid-column: 1 / -1; }
+  label { display: block; font-size: 12px; color: var(--ink-soft); margin-bottom: 5px; }
+  label .unit { color: var(--ink-mute); font-family: var(--mono); font-size: 11px; }
+  input[type="number"], input[type="date"], textarea {
+    width: 100%; padding: 9px 10px; font-size: 16px; color: var(--ink);
+    background: var(--surface-sunk); border: 1px solid var(--line); border-radius: 7px;
+    font-family: var(--mono); font-variant-numeric: tabular-nums;
+  }
+  textarea { font-family: var(--sans); font-size: 15px; resize: vertical; min-height: 58px; }
+  input:focus-visible, textarea:focus-visible, button:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px;
+  }
+
+  .chips { display: flex; gap: 6px; }
+  .chips button {
+    flex: 1; padding: 9px 0; font-family: var(--mono); font-size: 15px; color: var(--ink-soft);
+    background: var(--surface-sunk); border: 1px solid var(--line); border-radius: 7px; cursor: pointer;
+    transition: background .12s, color .12s, border-color .12s;
+  }
+  .chips button[aria-pressed="true"] {
+    background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 500;
+  }
+  .scale { display: flex; justify-content: space-between; font-size: 11px; color: var(--ink-mute); margin-top: 4px; }
+
+  .save {
+    width: 100%; margin-top: 14px; padding: 13px; font-family: var(--sans); font-size: 15px; font-weight: 700;
+    color: #fff; background: var(--accent); border: 0; border-radius: 8px; cursor: pointer;
+    transition: opacity .12s;
+  }
+  .save:disabled { opacity: .45; cursor: default; }
+  .msg { font-size: 13px; color: var(--ink-mute); margin-top: 9px; min-height: 20px; }
+  .msg.err { color: var(--down); }
+  .msg.ok { color: var(--up); }
+
+  .tiles { display: flex; flex-wrap: wrap; gap: 1px; background: var(--line-soft); border-radius: 8px; overflow: hidden; }
+  .tile { flex: 1 1 92px; background: var(--surface); padding: 11px 12px; }
+  .tile .name { font-size: 11px; color: var(--ink-mute); }
+  .tile .val { font-family: var(--mono); font-size: 21px; font-variant-numeric: tabular-nums; line-height: 1.3; }
+  .tile .delta { font-family: var(--mono); font-size: 11px; color: var(--ink-mute); }
+  .tile .delta.up { color: var(--up); }
+  .tile .delta.down { color: var(--down); }
+
+  .metricbar { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 12px; }
+  .metricbar button {
+    flex: 0 0 auto; padding: 5px 11px; font-size: 12px; font-family: var(--sans); color: var(--ink-soft);
+    background: transparent; border: 1px solid var(--line); border-radius: 999px; cursor: pointer; white-space: nowrap;
+  }
+  .metricbar button[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 500; }
+
+  .chartwrap { position: relative; }
+  .chartwrap svg { display: block; width: 100%; }
+  .tip {
+    position: absolute; pointer-events: none; opacity: 0; transform: translate(-50%, -100%);
+    background: var(--surface); border: 1px solid var(--line); border-radius: 6px; box-shadow: var(--shadow);
+    padding: 5px 9px; font-family: var(--mono); font-size: 12px; white-space: nowrap; transition: opacity .1s;
+  }
+  .tip .d { color: var(--ink-mute); }
+  .badge {
+    font-family: var(--mono); font-size: 10px; letter-spacing: .08em; color: var(--ink-mute);
+    border: 1px solid var(--line); border-radius: 4px; padding: 1px 6px;
+  }
+
+  .tablewrap { overflow-x: auto; margin: 0 -16px; padding: 0 16px; }
+  table { border-collapse: collapse; font-family: var(--mono); font-size: 12.5px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  th, td { padding: 6px 9px; text-align: right; border-bottom: 1px solid var(--line-soft); }
+  th { color: var(--ink-mute); font-weight: 500; font-size: 11px; text-align: right; }
+  th:first-child, td:first-child { text-align: left; padding-left: 0; }
+  td.memo { font-family: var(--sans); text-align: left; white-space: normal; min-width: 150px; color: var(--ink-soft); }
+  tr.today td { color: var(--accent); }
+
+  .empty { color: var(--ink-mute); font-size: 13px; }
+  .note { color: var(--ink-mute); font-size: 12px; line-height: 1.7; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+</style>
+
+<div class="page">
+  <header>
+    <h1>コンディション手帳</h1>
+    <span class="status"><span class="dot" id="statusDot"></span><span id="statusText">読み込み中</span></span>
+  </header>
+
+  <section>
+    <div class="h2row">
+      <h2>記録する</h2>
+      <span class="badge" id="dayBadge"></span>
+    </div>
+
+    <div class="fields">
+      <div class="field">
+        <label for="date">日付</label>
+        <input type="date" id="date">
+      </div>
+      <div class="field">
+        <label for="sleepScore">睡眠スコア <span class="unit">0-100</span></label>
+        <input type="number" id="sleepScore" inputmode="numeric" min="0" max="100">
+      </div>
+      <div class="field">
+        <label for="sleepHours">睡眠時間 <span class="unit">h</span></label>
+        <input type="number" id="sleepHours" inputmode="decimal" step="0.1" min="0" max="24">
+      </div>
+      <div class="field">
+        <label for="bbWake">Body Battery 起床 <span class="unit">0-100</span></label>
+        <input type="number" id="bbWake" inputmode="numeric" min="0" max="100">
+      </div>
+      <div class="field">
+        <label for="bbLow">Body Battery 最低 <span class="unit">0-100</span></label>
+        <input type="number" id="bbLow" inputmode="numeric" min="0" max="100">
+      </div>
+      <div class="field">
+        <label for="hrv">HRV <span class="unit">ms</span></label>
+        <input type="number" id="hrv" inputmode="numeric" min="0">
+      </div>
+      <div class="field">
+        <label for="restingHr">安静時心拍 <span class="unit">bpm</span></label>
+        <input type="number" id="restingHr" inputmode="numeric" min="0">
+      </div>
+      <div class="field">
+        <label for="stress">ストレス平均 <span class="unit">0-100</span></label>
+        <input type="number" id="stress" inputmode="numeric" min="0" max="100">
+      </div>
+      <div class="field wide">
+        <label for="steps">歩数 <span class="unit">歩</span></label>
+        <input type="number" id="steps" inputmode="numeric" min="0">
+      </div>
+      <div class="field wide">
+        <label>体感</label>
+        <div class="chips" id="feel">
+          <button type="button" data-v="1" aria-pressed="false">1</button>
+          <button type="button" data-v="2" aria-pressed="false">2</button>
+          <button type="button" data-v="3" aria-pressed="false">3</button>
+          <button type="button" data-v="4" aria-pressed="false">4</button>
+          <button type="button" data-v="5" aria-pressed="false">5</button>
+        </div>
+        <div class="scale"><span>1 最悪</span><span>5 絶好調</span></div>
+      </div>
+      <div class="field wide">
+        <label for="memo">メモ</label>
+        <textarea id="memo" placeholder="体調、気になること、飲み会・移動など"></textarea>
+      </div>
+    </div>
+
+    <button class="save" id="save" disabled>保存する</button>
+    <div class="msg" id="msg">接続中…</div>
+  </section>
+
+  <section>
+    <h2>直近7日の平均</h2>
+    <div class="tiles" id="tiles"></div>
+  </section>
+
+  <section>
+    <div class="h2row">
+      <h2>推移</h2>
+      <span class="badge" id="chartBadge">サンプル</span>
+    </div>
+    <div class="metricbar" id="metricbar"></div>
+    <div class="chartwrap" id="chartwrap">
+      <svg id="chart" role="img" aria-label="選択した指標の推移"></svg>
+      <div class="tip" id="tip"></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>記録一覧</h2>
+    <div class="tablewrap" id="tablewrap"><p class="empty">まだ記録がありません。</p></div>
+  </section>
+
+  <p class="note">
+    このページは自分専用です。記録は日付ごとに保存され、同じ日を入れ直すと上書きされます。<br>
+    数値は入れられるものだけで大丈夫です。体感だけは毎日つけておくと、あとで一番役に立ちます。
+  </p>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var NUM_FIELDS = ["sleepScore", "sleepHours", "bbWake", "bbLow", "hrv", "restingHr", "stress", "steps"];
+  var WDAY = ["日", "月", "火", "水", "木", "金", "土"];
+
+  var METRICS = [
+    { key: "sleepScore", label: "睡眠スコア", unit: "", better: "up", tile: true },
+    { key: "bbWake",     label: "BB起床",     unit: "", better: "up", tile: true },
+    { key: "hrv",        label: "HRV",        unit: "ms", better: "up", tile: true },
+    { key: "restingHr",  label: "安静時心拍",  unit: "bpm", better: "down", tile: true },
+    { key: "feel",       label: "体感",       unit: "", better: "up", tile: true },
+    { key: "sleepHours", label: "睡眠時間",   unit: "h", better: "up" },
+    { key: "stress",     label: "ストレス",   unit: "", better: "down" },
+    { key: "steps",      label: "歩数",       unit: "歩", better: "up" }
+  ];
+
+  var COLUMNS = [
+    ["date", "日付"], ["wday", "曜"], ["sleepScore", "睡眠"], ["sleepHours", "時間"],
+    ["bbWake", "BB起床"], ["bbLow", "BB最低"], ["hrv", "HRV"], ["restingHr", "安静"],
+    ["stress", "ストレス"], ["steps", "歩数"], ["feel", "体感"], ["memo", "メモ"]
+  ];
+
+  // 記録が1件も無いときに「推移」の形を見せるための例。実データが入ると消える。
+  var SAMPLE = [
+    { date: "—", sleepScore: 68, bbWake: 61, hrv: 38, restingHr: 57, feel: 3, sleepHours: 5.8, stress: 44, steps: 6400 },
+    { date: "—", sleepScore: 74, bbWake: 70, hrv: 41, restingHr: 55, feel: 3, sleepHours: 6.4, stress: 38, steps: 8100 },
+    { date: "—", sleepScore: 61, bbWake: 52, hrv: 35, restingHr: 59, feel: 2, sleepHours: 5.2, stress: 52, steps: 5200 },
+    { date: "—", sleepScore: 80, bbWake: 78, hrv: 46, restingHr: 53, feel: 4, sleepHours: 7.0, stress: 30, steps: 9800 },
+    { date: "—", sleepScore: 77, bbWake: 74, hrv: 44, restingHr: 54, feel: 4, sleepHours: 6.8, stress: 33, steps: 11200 },
+    { date: "—", sleepScore: 85, bbWake: 84, hrv: 49, restingHr: 51, feel: 5, sleepHours: 7.4, stress: 26, steps: 10400 },
+    { date: "—", sleepScore: 72, bbWake: 66, hrv: 42, restingHr: 55, feel: 3, sleepHours: 6.2, stress: 40, steps: 7300 }
+  ];
+
+  var db = null;
+  var records = [];          // 日付の古い順
+  var metric = "sleepScore";
+  var feel = "";
+  var dirty = false;         // 入力中かどうか（他端末の更新で上書きしないため）
+
+  var el = {};
+  ["date", "memo", "feel", "save", "msg", "tiles", "metricbar", "chart", "chartwrap",
+   "tip", "tablewrap", "statusDot", "statusText", "dayBadge", "chartBadge"].forEach(function (id) {
+    el[id] = document.getElementById(id);
+  });
+  NUM_FIELDS.forEach(function (k) { el[k] = document.getElementById(k); });
+
+  /* ---------- 日付 ---------- */
+
+  function todayISO() {
+    var d = new Date();
+    return [d.getFullYear(), pad(d.getMonth() + 1), pad(d.getDate())].join("-");
+  }
+  function pad(n) { return (n < 10 ? "0" : "") + n; }
+
+  function wdayOf(iso) {
+    var p = iso.split("-");
+    if (p.length !== 3) return "";
+    return WDAY[new Date(+p[0], +p[1] - 1, +p[2]).getDay()];
+  }
+
+  function shortDate(iso) {
+    var p = iso.split("-");
+    return p.length === 3 ? (+p[1]) + "/" + (+p[2]) : iso;
+  }
+
+  /* ---------- 画面の組み立て ---------- */
+
+  function buildMetricBar() {
+    el.metricbar.innerHTML = "";
+    METRICS.forEach(function (m) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.textContent = m.label;
+      b.setAttribute("aria-pressed", String(m.key === metric));
+      b.addEventListener("click", function () {
+        metric = m.key;
+        buildMetricBar();
+        drawChart();
+      });
+      el.metricbar.appendChild(b);
+    });
+  }
+
+  function setStatus(kind, text) {
+    el.statusDot.className = "dot" + (kind ? " " + kind : "");
+    el.statusText.textContent = text;
+  }
+
+  function message(text, kind) {
+    el.msg.textContent = text;
+    el.msg.className = "msg" + (kind ? " " + kind : "");
+  }
+
+  /* ---------- 入力欄 ---------- */
+
+  function paintFeel() {
+    Array.prototype.forEach.call(el.feel.querySelectorAll("button"), function (b) {
+      b.setAttribute("aria-pressed", String(b.dataset.v === feel));
+    });
+  }
+
+  function fillForm(rec) {
+    NUM_FIELDS.forEach(function (k) {
+      el[k].value = (rec && rec[k] != null) ? rec[k] : "";
+    });
+    el.memo.value = (rec && rec.memo) || "";
+    feel = (rec && rec.feel != null) ? String(rec.feel) : "";
+    paintFeel();
+    dirty = false;
+  }
+
+  function readForm() {
+    var body = { date: el.date.value, memo: el.memo.value.trim(), updatedAt: new Date().toISOString() };
+    NUM_FIELDS.forEach(function (k) {
+      var v = el[k].value.trim();
+      body[k] = v === "" ? null : Number(v);
+      if (Number.isNaN(body[k])) body[k] = null;
+    });
+    body.feel = feel === "" ? null : Number(feel);
+    return body;
+  }
+
+  function findRecord(date) {
+    for (var i = records.length - 1; i >= 0; i--) {
+      if (records[i].date === date) return records[i];
+    }
+    return null;
+  }
+
+  function onDateChange() {
+    var d = el.date.value;
+    el.dayBadge.textContent = d ? wdayOf(d) + "曜日" : "";
+    fillForm(findRecord(d));
+    refreshStatus();
+  }
+
+  function refreshStatus() {
+    if (!db) { setStatus("", "保存できません"); return; }
+    var today = todayISO();
+    if (findRecord(today)) setStatus("done", "今日は記録済み");
+    else setStatus("todo", "今日はまだ未記録");
+  }
+
+  /* ---------- 集計 ---------- */
+
+  function average(rows, key) {
+    var sum = 0, n = 0;
+    rows.forEach(function (r) {
+      var v = r[key];
+      if (v == null || Number.isNaN(v)) return;
+      sum += v; n++;
+    });
+    return n ? sum / n : null;
+  }
+
+  function round1(v) { return v == null ? null : Math.round(v * 10) / 10; }
+
+  function drawTiles() {
+    var last7 = records.slice(-7);
+    var prev7 = records.slice(-14, -7);
+    var html = METRICS.filter(function (m) { return m.tile; }).map(function (m) {
+      var now = round1(average(last7, m.key));
+      var before = round1(average(prev7, m.key));
+      var delta = "<div class=\"delta\">—</div>";
+      if (now != null && before != null) {
+        var d = round1(now - before);
+        var cls = "";
+        if (Math.abs(d) >= 0.05) cls = ((d > 0) === (m.better === "up")) ? " up" : " down";
+        delta = "<div class=\"delta" + cls + "\">前週比 " + (d > 0 ? "+" : "") + d + "</div>";
+      }
+      return "<div class=\"tile\"><div class=\"name\">" + m.label + "</div>" +
+             "<div class=\"val\">" + (now == null ? "—" : now) + "</div>" + delta + "</div>";
+    }).join("");
+    el.tiles.innerHTML = html;
+  }
+
+  /* ---------- 推移グラフ ---------- */
+
+  var SVG = "http://www.w3.org/2000/svg";
+  var chartPoints = [];
+
+  function node(name, attrs, text) {
+    var n = document.createElementNS(SVG, name);
+    Object.keys(attrs).forEach(function (k) { n.setAttribute(k, attrs[k]); });
+    if (text != null) n.textContent = text;
+    return n;
+  }
+
+  /** 目盛りは実際のデータが届く値だけに置く（最小・中央・最大）。 */
+  function axisOf(values) {
+    var min = Math.min.apply(null, values);
+    var max = Math.max.apply(null, values);
+    if (min === max) { min -= 1; max += 1; }
+    var pad = (max - min) * 0.12;
+    var r = function (v) { return Math.round(v * 10) / 10; };
+    return { lo: min - pad, hi: max + pad, ticks: [r(min), r((min + max) / 2), r(max)] };
+  }
+
+  function drawChart() {
+    var m = METRICS.filter(function (x) { return x.key === metric; })[0];
+    var isSample = records.length === 0;
+    var source = isSample ? SAMPLE : records.slice(-30);
+    el.chartBadge.textContent = isSample ? "サンプル" : ("直近 " + source.length + " 日");
+    el.chartBadge.style.opacity = isSample ? "1" : ".7";
+
+    var pts = [];
+    source.forEach(function (r) {
+      if (r[m.key] != null && !Number.isNaN(r[m.key])) pts.push({ date: r.date, v: r[m.key] });
+    });
+
+    var svg = el.chart;
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+    chartPoints = [];
+    el.tip.style.opacity = "0";
+
+    var W = Math.max(el.chartwrap.clientWidth, 260);
+    var H = 190;
+    svg.setAttribute("width", W);
+    svg.setAttribute("height", H);
+    svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+
+    if (pts.length === 0) {
+      svg.appendChild(node("text", { x: W / 2, y: H / 2, "text-anchor": "middle",
+        fill: "var(--ink-mute)", "font-size": "13", "font-family": "var(--sans)" },
+        m.label + "の記録がまだありません"));
+      return;
+    }
+
+    var padL = 40, padR = 14, padT = 14, padB = 26;
+    var axis = axisOf(pts.map(function (p) { return p.v; }));
+    var lo = axis.lo, hi = axis.hi;
+    var plotW = W - padL - padR, plotH = H - padT - padB;
+
+    var xAt = function (i) { return pts.length === 1 ? padL + plotW / 2 : padL + plotW * i / (pts.length - 1); };
+    var yAt = function (v) { return padT + plotH * (1 - (v - lo) / (hi - lo)); };
+
+    axis.ticks.forEach(function (t) {
+      var y = yAt(t);
+      svg.appendChild(node("line", { x1: padL, y1: y, x2: W - padR, y2: y,
+        stroke: "var(--line-soft)", "stroke-width": "1" }));
+      svg.appendChild(node("text", { x: padL - 8, y: y + 4, "text-anchor": "end",
+        fill: "var(--ink-mute)", "font-size": "11", "font-family": "var(--mono)" }, String(t)));
+    });
+
+    var line = pts.map(function (p, i) { return (i ? "L" : "M") + xAt(i) + " " + yAt(p.v); }).join(" ");
+    var area = line + " L" + xAt(pts.length - 1) + " " + (padT + plotH) + " L" + xAt(0) + " " + (padT + plotH) + " Z";
+
+    svg.appendChild(node("path", { d: area, fill: "var(--accent)", "fill-opacity": isSample ? ".06" : ".12", stroke: "none" }));
+    svg.appendChild(node("path", { d: line, fill: "none", stroke: "var(--accent)",
+      "stroke-width": "2", "stroke-linejoin": "round", "stroke-linecap": "round",
+      "stroke-opacity": isSample ? ".45" : "1" }));
+
+    var lastX = xAt(pts.length - 1), lastY = yAt(pts[pts.length - 1].v);
+    svg.appendChild(node("circle", { cx: lastX, cy: lastY, r: "4.5", fill: "var(--accent)",
+      stroke: "var(--surface)", "stroke-width": "2", "fill-opacity": isSample ? ".45" : "1" }));
+
+    if (!isSample) {
+      svg.appendChild(node("text", { x: padL, y: H - 8, "text-anchor": "start",
+        fill: "var(--ink-mute)", "font-size": "11", "font-family": "var(--mono)" }, shortDate(pts[0].date)));
+      if (pts.length > 1) {
+        svg.appendChild(node("text", { x: W - padR, y: H - 8, "text-anchor": "end",
+          fill: "var(--ink-mute)", "font-size": "11", "font-family": "var(--mono)" },
+          shortDate(pts[pts.length - 1].date)));
+      }
+    }
+
+    var cross = node("line", { x1: 0, y1: padT, x2: 0, y2: padT + plotH,
+      stroke: "var(--accent)", "stroke-width": "1", "stroke-dasharray": "3 3", opacity: "0" });
+    var hover = node("circle", { cx: 0, cy: 0, r: "4.5", fill: "var(--accent)",
+      stroke: "var(--surface)", "stroke-width": "2", opacity: "0" });
+    svg.appendChild(cross);
+    svg.appendChild(hover);
+
+    chartPoints = pts.map(function (p, i) { return { x: xAt(i), y: yAt(p.v), date: p.date, v: p.v }; });
+    svg._cross = cross;
+    svg._hover = hover;
+    svg._unit = m.unit;
+    svg._sample = isSample;
+  }
+
+  function onChartMove(ev) {
+    if (!chartPoints.length) return;
+    var svg = el.chart;
+    var rect = svg.getBoundingClientRect();
+    var x = ev.clientX - rect.left;
+    var best = chartPoints[0], bestD = Infinity;
+    chartPoints.forEach(function (p) {
+      var d = Math.abs(p.x - x);
+      if (d < bestD) { bestD = d; best = p; }
+    });
+    svg._cross.setAttribute("x1", best.x);
+    svg._cross.setAttribute("x2", best.x);
+    svg._cross.setAttribute("opacity", "1");
+    svg._hover.setAttribute("cx", best.x);
+    svg._hover.setAttribute("cy", best.y);
+    svg._hover.setAttribute("opacity", "1");
+    el.tip.innerHTML = (svg._sample ? "" : "<span class=\"d\">" + shortDate(best.date) + "</span> ") +
+                       best.v + (svg._unit || "");
+    el.tip.style.left = best.x + "px";
+    el.tip.style.top = (best.y - 10) + "px";
+    el.tip.style.opacity = "1";
+  }
+
+  function onChartLeave() {
+    var svg = el.chart;
+    if (svg._cross) svg._cross.setAttribute("opacity", "0");
+    if (svg._hover) svg._hover.setAttribute("opacity", "0");
+    el.tip.style.opacity = "0";
+  }
+
+  /* ---------- 一覧 ---------- */
+
+  function esc(v) {
+    return String(v).replace(/[&<>"]/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;" }[c];
+    });
+  }
+
+  function drawTable() {
+    if (!records.length) {
+      el.tablewrap.innerHTML = "<p class=\"empty\">まだ記録がありません。上のフォームから今日の分をどうぞ。</p>";
+      return;
+    }
+    var today = todayISO();
+    var head = "<tr>" + COLUMNS.map(function (c) { return "<th>" + c[1] + "</th>"; }).join("") + "</tr>";
+    var body = records.slice().reverse().map(function (r) {
+      var cells = COLUMNS.map(function (c) {
+        var v;
+        if (c[0] === "wday") v = wdayOf(r.date);
+        else if (c[0] === "date") v = r.date;
+        else v = (r[c[0]] == null || r[c[0]] === "") ? "" : r[c[0]];
+        return c[0] === "memo" ? "<td class=\"memo\">" + esc(v) + "</td>" : "<td>" + esc(v) + "</td>";
+      }).join("");
+      return "<tr" + (r.date === today ? " class=\"today\"" : "") + ">" + cells + "</tr>";
+    }).join("");
+    el.tablewrap.innerHTML = "<table>" + head + body + "</table>";
+  }
+
+  function redraw() {
+    drawTiles();
+    drawChart();
+    drawTable();
+    refreshStatus();
+  }
+
+  /* ---------- 保存と読み込み ---------- */
+
+  function save() {
+    if (!db) return;
+    var body = readForm();
+    if (!body.date) { message("日付を入れてください", "err"); return; }
+
+    el.save.disabled = true;
+    message("保存中…");
+    db.doc("condition/" + body.date).set(body).then(function () {
+      dirty = false;
+      el.save.disabled = false;
+      message(body.date + " を保存しました", "ok");
+    }).catch(function (e) {
+      el.save.disabled = false;
+      var code = (e && e.code) || "";
+      message(code === "quota_exceeded" ? "保存できる件数の上限です。古い記録を消してください。"
+                                        : "保存できませんでした（" + (code || "不明") + "）。もう一度お試しください。", "err");
+    });
+  }
+
+  function applySnapshot(snap) {
+    records = snap.docs.map(function (d) {
+      var v = d.data() || {};
+      return {
+        date: v.date || d.id, memo: v.memo || "",
+        sleepScore: num(v.sleepScore), sleepHours: num(v.sleepHours), bbWake: num(v.bbWake),
+        bbLow: num(v.bbLow), hrv: num(v.hrv), restingHr: num(v.restingHr),
+        stress: num(v.stress), steps: num(v.steps), feel: num(v.feel)
+      };
+    }).sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
+
+    redraw();
+    if (!dirty) fillForm(findRecord(el.date.value));
+  }
+
+  function num(v) {
+    if (v == null || v === "") return null;
+    var n = Number(v);
+    return Number.isNaN(n) ? null : n;
+  }
+
+  /* ---------- 起動 ---------- */
+
+  el.date.value = todayISO();
+  el.dayBadge.textContent = wdayOf(el.date.value) + "曜日";
+  buildMetricBar();
+  redraw();
+
+  el.date.addEventListener("change", onDateChange);
+  el.memo.addEventListener("input", function () { dirty = true; });
+  NUM_FIELDS.forEach(function (k) { el[k].addEventListener("input", function () { dirty = true; }); });
+  el.feel.addEventListener("click", function (ev) {
+    var b = ev.target.closest("button");
+    if (!b) return;
+    feel = (feel === b.dataset.v) ? "" : b.dataset.v;
+    dirty = true;
+    paintFeel();
+  });
+  el.save.addEventListener("click", save);
+  el.chart.addEventListener("pointermove", onChartMove);
+  el.chart.addEventListener("pointerdown", onChartMove);
+  el.chart.addEventListener("pointerleave", onChartLeave);
+  window.addEventListener("resize", function () { drawChart(); });
+
+  claude.use("db").then(function (store) {
+    if (!store) {
+      message("この画面では保存できません。claude.ai で開き直してください。", "err");
+      setStatus("", "保存できません");
+      return;
+    }
+    db = store;
+    el.save.disabled = false;
+    message("");
+    setStatus("todo", "読み込み中");
+    db.collection("condition").orderBy("date", "desc").limit(180)
+      .onSnapshot(applySnapshot, function (e) {
+        message("記録を読み込めませんでした（" + (e && e.code) + "）。開き直してください。", "err");
+      });
+  }).catch(function () {
+    message("この画面では保存できません。claude.ai で開き直してください。", "err");
+  });
+})();
+</script>
