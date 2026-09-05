@@ -140,6 +140,15 @@
     text-align:right;font-size:16px;font-weight:700;font-variant-numeric:tabular-nums;
   }
   .wfield .u{font-size:11px;color:var(--muted)}
+  .wfield.steps input{width:96px}
+  .stepcam{
+    font-size:11.5px;font-weight:700;color:var(--accent);white-space:nowrap;
+    border:1px solid var(--hair);border-radius:99px;padding:5px 11px;margin-left:2px;
+  }
+  .stepcam:hover{border-color:var(--accent);background:var(--accent-soft)}
+  .stepnote{flex-basis:100%;font-size:11.5px;color:var(--muted);display:flex;flex-wrap:wrap;gap:2px 12px}
+  .stepnote b{color:var(--ink);font-weight:700;font-variant-numeric:tabular-nums}
+  .stepnote .done{color:var(--accent);font-weight:700}
   .wdelta{margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:1px;font-size:11.5px;color:var(--muted);text-align:right}
   .wdelta b{font-weight:700;font-variant-numeric:tabular-nums}
   .wdelta .down{color:var(--accent)}
@@ -204,6 +213,7 @@
   /* ---- 週まとめ ---- */
   .weekly{display:flex;flex-direction:column;gap:16px}
   .wk-tiles{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--hair);border:1px solid var(--hair);border-radius:3px;overflow:hidden}
+  .wk-tile .n.sm{font-size:20px}
   .wk-tile{background:var(--card);padding:12px 13px;display:flex;flex-direction:column;gap:2px;min-height:78px}
   .wk-tile .n{font-size:24px;font-weight:700;line-height:1.15;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
   .wk-tile .n em{font-style:normal;font-size:11px;font-weight:600;color:var(--muted);margin-left:3px}
@@ -215,19 +225,19 @@
   .wk-block h3{margin:0;font-size:13px;font-weight:700;display:flex;align-items:baseline;justify-content:space-between;gap:8px}
   .wk-block h3 span{font-size:11px;font-weight:500;color:var(--muted)}
   .wk-scroll{overflow-x:auto}
-  .wk-table{width:100%;border-collapse:collapse;font-size:13px}
+  .wk-table{width:100%;border-collapse:collapse;font-size:12.5px}
   .wk-table th{
     font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:700;
     text-align:right;padding:0 0 5px;border-bottom:2px solid var(--rule);white-space:nowrap;
   }
   .wk-table th:first-child{text-align:left}
   .wk-table td{padding:7px 0;border-bottom:1px solid var(--hair);text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
-  .wk-table th+th,.wk-table td+td{padding-left:13px}
+  .wk-table th+th,.wk-table td+td{padding-left:10px}
   .wk-table td:first-child{text-align:left;font-weight:700}
   .wk-table td small{font-weight:500;color:var(--muted);font-size:11px;margin-left:4px}
   .wk-table tr.today td{background:var(--accent-soft)}
   .wk-table tr.blank td{color:var(--muted)}
-  .wk-table .bar{position:relative;padding-right:8px;min-width:74px}
+  .wk-table .bar{position:relative;padding-right:6px;min-width:62px}
   .wk-table .bar i{position:absolute;left:0;bottom:4px;height:4px;background:var(--accent);opacity:.5;border-radius:99px}
   .wk-table .bar i.over{background:var(--warn);opacity:.55}
   .wk-table .bar b{position:relative;font-weight:700}
@@ -300,6 +310,19 @@
   .detected .del{color:var(--muted);font-size:15px;padding:2px 5px;border-radius:2px;justify-self:end}
   .detected .del:hover{color:var(--warn);background:var(--warn-soft)}
   .detected li.lowc input[type="text"],.detected li.lowc input[type="number"]{border-color:var(--warn);background:var(--warn-soft)}
+  .bignum{display:flex;align-items:baseline;gap:8px;padding:2px 0}
+  .bignum input{
+    flex:1;min-width:0;padding:10px 12px;border:1px solid var(--hair);border-radius:3px;background:var(--paper);
+    text-align:right;font-size:28px;font-weight:700;font-variant-numeric:tabular-nums;
+  }
+  .bignum .u{font-size:13px;font-weight:700;color:var(--muted)}
+  .datepick{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+  .datepick span{font-size:12px;color:var(--muted)}
+  .datepick button{border:1px solid var(--hair);border-radius:99px;padding:5px 13px;font-size:12.5px;font-weight:700;color:var(--muted)}
+  .datepick button[aria-pressed="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+  .check{display:flex;gap:9px;align-items:flex-start;font-size:13px;line-height:1.5;padding:8px 10px;border:1px solid var(--hair);border-radius:3px}
+  .check input{width:17px;height:17px;accent-color:var(--accent);margin-top:2px;flex:none}
+  .check small{display:block;font-size:11px;color:var(--muted);margin-top:2px}
   .sheet-total{display:flex;justify-content:space-between;align-items:baseline;font-size:13.5px;padding-top:2px}
   .sheet-total b{font-size:19px;font-weight:700;font-variant-numeric:tabular-nums}
   .sheet-actions{display:flex;gap:8px}
@@ -342,6 +365,11 @@
       <span class="unit">kg</span>
     </div>
     <div class="row">
+      <label for="targetStepsInput">目標歩数</label>
+      <input id="targetStepsInput" type="number" inputmode="numeric" min="1000" max="50000" step="500" value="8000">
+      <span class="unit">歩</span>
+    </div>
+    <div class="row">
       <button class="btn-primary" id="targetSave">保存</button>
       <span class="unit" id="metNote"></span>
     </div>
@@ -379,7 +407,14 @@
       <input id="fatInput" type="number" inputmode="decimal" min="1" max="70" step="0.1" placeholder="--">
       <span class="u">%</span>
     </div>
+    <div class="wfield steps">
+      <label for="stepsInput">歩数</label>
+      <input id="stepsInput" type="number" inputmode="numeric" min="0" max="200000" step="1" placeholder="--">
+      <span class="u">歩</span>
+      <button class="stepcam" id="btnSteps" hidden>📷 読み取る</button>
+    </div>
     <div class="wdelta" id="wdelta"></div>
+    <div class="stepnote" id="stepnote"></div>
   </section>
 
   <div class="photo-cta" id="photoCta" hidden>
@@ -420,6 +455,7 @@
     <div class="tabs" role="tablist">
       <button class="tab" id="tabKcal" role="tab" aria-selected="true">カロリー 7日</button>
       <button class="tab" id="tabWeight" role="tab" aria-selected="false">体重 30日</button>
+      <button class="tab" id="tabSteps" role="tab" aria-selected="false">歩数 7日</button>
     </div>
     <div class="history-head">
       <div class="eyebrow" id="chartTitle">この日までの7日間</div>
@@ -534,13 +570,14 @@
   var state = {
     db:null, mode:"loading", sample:null, imgLimits:null,
     inViewer: !!(window.claude && typeof window.claude.use === "function"),
-    target:2000, targetWeight:null,
+    target:2000, targetWeight:null, targetSteps:8000,
     days:{},              // "YYYY-MM-DD" -> {date, items:[], exercise:[], weight, fat}
     sel:dateKey(new Date()),
     migrated:false
   };
   var ui = { open:null, q:"", kcal:"", exName:"", exMin:"30", exKcal:"", exTouched:false, tab:"kcal", view:"day" };
-  var photo = { open:false, url:null, blob:null, slot:"lunch", status:"idle", items:[], err:"", ctl:null };
+  var photo = { open:false, url:null, blob:null, slot:"lunch", status:"idle", items:[], err:"", ctl:null,
+                kind:"meal", steps:null, stepsDate:null, useDate:null, alsoEx:false };
 
   /* ---------------- helpers ---------------- */
   function pad(n){ return n < 10 ? "0" + n : "" + n; }
@@ -559,7 +596,8 @@
       items: Array.isArray(o.items) ? o.items : [],
       exercise: Array.isArray(o.exercise) ? o.exercise : [],
       weight: typeof o.weight === "number" ? o.weight : null,
-      fat: typeof o.fat === "number" ? o.fat : null
+      fat: typeof o.fat === "number" ? o.fat : null,
+      steps: typeof o.steps === "number" ? o.steps : null
     };
   }
   function weekStart(key){            // 月曜はじまり
@@ -579,7 +617,7 @@
   function hasAnyData(){
     for (var k in state.days){
       var d = state.days[k];
-      if ((d.items && d.items.length) || (d.exercise && d.exercise.length) || d.weight != null) return true;
+      if ((d.items && d.items.length) || (d.exercise && d.exercise.length) || d.weight != null || d.steps != null) return true;
     }
     return false;
   }
@@ -613,6 +651,12 @@
     for (var j = 0; j < EXERCISES.length; j++){ if (name && name.indexOf(EXERCISES[j].n) >= 0) return EXERCISES[j].m; }
     return DEFAULT_MET;
   }
+  function stepsKcal(steps, key){
+    steps = +steps || 0;
+    if (steps <= 0) return 0;
+    var hours = (steps / 100) / 60;           // おおよそ 100歩/分
+    return Math.round(2.5 * calcWeight(key || state.sel) * hours * 1.05);
+  }
   function estimateBurn(name, min){
     min = +min || 0;
     return Math.round(metsOf(name) * calcWeight(state.sel) * (min/60) * 1.05);
@@ -621,7 +665,7 @@
   /* ---------------- サンプル表示 ---------------- */
   var DEMO = (function(){
     var out = {}, today = dateKey(new Date());
-    out[today] = {date:today, weight:65.4, fat:22.1, items:[
+    out[today] = {date:today, weight:65.4, fat:22.1, steps:8430, items:[
       {id:"d1", slot:"breakfast", name:"食パン 6枚切1枚", kcal:158},
       {id:"d2", slot:"breakfast", name:"卵 1個", kcal:76},
       {id:"d3", slot:"breakfast", name:"コーヒー(ブラック)", kcal:8},
@@ -646,7 +690,8 @@
     ];
     for (var i = 1; i <= 6; i++){
       var k = shiftKey(today, -i), lu = lunches[i-1];
-      out[k] = normDay({date:k, weight:wts[i-1], items:[
+      var stp = [9120,6480,7750,10240,5900,8360];
+      out[k] = normDay({date:k, weight:wts[i-1], steps:stp[i-1], items:[
         {id:"pb"+i, slot:"breakfast", name:"食パン 6枚切1枚", kcal:158},
         {id:"pl"+i, slot:"lunch", name:lu.n, kcal:lu.k},
         {id:"pd"+i, slot:"dinner", name:"夕食(ご飯・主菜・副菜)", kcal:past[i-1] - 158 - lu.k}
@@ -657,7 +702,7 @@
 
   /* ---------------- 保存 ---------------- */
   function saveLocal(){
-    try{ localStorage.setItem(LS_KEY, JSON.stringify({target:state.target, targetWeight:state.targetWeight, days:state.days})); }catch(e){}
+    try{ localStorage.setItem(LS_KEY, JSON.stringify({target:state.target, targetWeight:state.targetWeight, targetSteps:state.targetSteps, days:state.days})); }catch(e){}
   }
   function loadLocal(){
     try{
@@ -670,13 +715,13 @@
   function persistDay(key){
     var d = dayOf(key);
     if (state.db){
-      state.db.doc("days/" + key).set({date:d.date, items:d.items, exercise:d.exercise, weight:d.weight, fat:d.fat})
+      state.db.doc("days/" + key).set({date:d.date, items:d.items, exercise:d.exercise, weight:d.weight, fat:d.fat, steps:d.steps})
         .catch(function(err){ flash("保存できませんでした（" + (err && err.code ? err.code : "error") + "）"); });
     } else { saveLocal(); }
   }
   function persistSettings(){
     if (state.db){
-      state.db.doc("settings/main").set({targetKcal:state.target, targetWeight:state.targetWeight})
+      state.db.doc("settings/main").set({targetKcal:state.target, targetWeight:state.targetWeight, targetSteps:state.targetSteps})
         .catch(function(){ flash("目標を保存できませんでした"); });
     } else { saveLocal(); }
   }
@@ -732,13 +777,15 @@
     day.exercise = day.exercise.filter(function(i){ return i.id !== id; });
     persistDay(state.sel); render();
   }
-  function setWeight(field, value){
-    var day = touchDay(state.sel);
-    var v = value === "" ? null : Math.round(+value * 10) / 10;
-    if (v !== null && (!isFinite(v) || v <= 0)) return;
+  var FIELD_JA = {weight:"体重", fat:"体脂肪率", steps:"歩数"};
+  function setWeight(field, value, key){
+    key = key || state.sel;
+    var day = touchDay(key);
+    var v = value === "" ? null : (field === "steps" ? Math.round(+value) : Math.round(+value * 10) / 10);
+    if (v !== null && (!isFinite(v) || v < 0 || (field !== "steps" && v <= 0))) return;
     day[field] = v;
-    persistDay(state.sel); render();
-    if (v !== null) flash(field === "weight" ? "体重を記録しました" : "体脂肪率を記録しました");
+    persistDay(key); render();
+    if (v !== null) flash(FIELD_JA[field] + "を記録しました");
   }
 
   /* ---------------- 候補 ---------------- */
@@ -837,6 +884,21 @@
       if (state.targetWeight != null) lines.push('<span>目標 <b>' + fmt1(state.targetWeight) + ' kg</b></span>');
     }
     el("wdelta").innerHTML = lines.join("");
+
+    // 歩数
+    var sIn = el("stepsInput");
+    if (document.activeElement !== sIn) sIn.value = day.steps != null ? day.steps : "";
+    el("btnSteps").hidden = !canPhoto();
+    if (day.steps != null){
+      var sk = stepsKcal(day.steps, key);
+      var rest = state.targetSteps - day.steps;
+      el("stepnote").innerHTML =
+        '<span>歩いた分 約 <b>' + fmt(sk) + ' kcal</b></span>' +
+        '<span>目標 ' + fmt(state.targetSteps) + '歩まで ' +
+          (rest <= 0 ? '<b class="done">達成</b>' : '<b>あと ' + fmt(rest) + '歩</b>') + '</span>';
+    } else {
+      el("stepnote").innerHTML = '<span>歩数は未記録です。ヘルスケアの画面を「📷 読み取る」で取り込めます。</span>';
+    }
 
     // 合計
     el("totalKcal").textContent = fmt(total);
@@ -944,7 +1006,44 @@
   function renderChart(){
     el("tabKcal").setAttribute("aria-selected", String(ui.tab === "kcal"));
     el("tabWeight").setAttribute("aria-selected", String(ui.tab === "weight"));
-    if (ui.tab === "kcal") chartKcal(); else chartWeight();
+    el("tabSteps").setAttribute("aria-selected", String(ui.tab === "steps"));
+    if (ui.tab === "kcal") chartKcal();
+    else if (ui.tab === "weight") chartWeight();
+    else chartSteps();
+  }
+
+  function chartSteps(){
+    el("chartTitle").textContent = "この日までの7日間";
+    el("chartNote").textContent = "破線は目標歩数です。";
+    var W = 360, H = 138, padL = 8, padR = 8, top = 20, base = 100;
+    var keys = [], i;
+    for (i = 6; i >= 0; i--) keys.push(shiftKey(state.sel, -i));
+    var vals = keys.map(function(k){ var v = viewDay(k).steps; return v == null ? 0 : v; });
+    var rec = vals.filter(function(v){ return v > 0; });
+    var avg = rec.length ? rec.reduce(function(a,b){return a+b;},0)/rec.length : 0;
+    el("avgVal").innerHTML = (rec.length ? '<span class="num">' + fmt(avg) + '</span>' : "—") +
+      ' <em>平均 歩 / 記録' + rec.length + '日</em>';
+
+    var scale = Math.max.apply(null, vals.concat([state.targetSteps,1])) * 1.2;
+    var step = (W-padL-padR)/7, bw = Math.min(30, step-12), h = base-top, parts = [];
+    var ty = base - (state.targetSteps/scale)*h;
+    parts.push('<line x1="'+padL+'" y1="'+ty.toFixed(1)+'" x2="'+(W-padR)+'" y2="'+ty.toFixed(1)+'" stroke="var(--muted)" stroke-width="1" stroke-dasharray="4 3" />');
+    parts.push('<text x="'+(W-padR)+'" y="'+(ty-5).toFixed(1)+'" text-anchor="end" font-size="9" font-weight="700" fill="var(--muted)">目標 '+fmt(state.targetSteps)+'</text>');
+    keys.forEach(function(k,idx){
+      var t = vals[idx], bh = (t/scale)*h, x = padL + step*idx + (step-bw)/2, y = base-bh;
+      var isSel = k === state.sel;
+      if (t > 0){
+        parts.push('<rect x="'+x.toFixed(1)+'" y="'+y.toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+Math.max(bh,1).toFixed(1)+'" rx="1.5" fill="var(--accent)" fill-opacity="'+(isSel?"1":"0.42")+'" />');
+        parts.push('<text x="'+(x+bw/2).toFixed(1)+'" y="'+Math.max(y-5,10).toFixed(1)+'" text-anchor="middle" font-size="9" font-weight="700" fill="var(--ink)" fill-opacity="'+(isSel?"1":"0.55")+'">'+fmt(t)+'</text>');
+      } else {
+        parts.push('<rect x="'+x.toFixed(1)+'" y="'+(base-2)+'" width="'+bw.toFixed(1)+'" height="2" fill="var(--hair)" />');
+      }
+      var dd = parseKey(k);
+      parts.push('<text x="'+(x+bw/2).toFixed(1)+'" y="'+(base+15)+'" text-anchor="middle" font-size="9.5" font-weight="'+(isSel?"700":"500")+'" fill="'+(isSel?"var(--ink)":"var(--muted)")+'">'+(dd.getMonth()+1)+'/'+dd.getDate()+'</text>');
+      parts.push('<text x="'+(x+bw/2).toFixed(1)+'" y="'+(base+27)+'" text-anchor="middle" font-size="8.5" fill="var(--muted)">'+WEEK_S[dd.getDay()]+'</text>');
+    });
+    parts.push('<line x1="'+padL+'" y1="'+base+'" x2="'+(W-padR)+'" y2="'+base+'" stroke="var(--hair)" stroke-width="1" />');
+    el("chart").innerHTML = '<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="直近7日間の歩数">'+parts.join("")+'</svg>';
   }
 
   function chartKcal(){
@@ -1063,7 +1162,7 @@
       var d = viewDay(k);
       return {
         key:k, date:parseKey(k), future:k > todayK,
-        intake:totalOf(k), burn:burnOf(k), weight:d.weight,
+        intake:totalOf(k), burn:burnOf(k), weight:d.weight, steps:d.steps,
         snack:d.items.filter(function(i){return i.slot==="snack";}).reduce(function(a,i){return a+(+i.kcal||0);},0),
         exMin:d.exercise.reduce(function(a,i){return a+(+i.min||0);},0),
         items:d.items
@@ -1079,8 +1178,12 @@
       exMin: rows.reduce(function(a,r){return a+r.exMin;},0),
       snack: rows.reduce(function(a,r){return a+r.snack;},0),
       under: rec.filter(function(r){ return r.intake <= state.target + r.burn; }).length,
-      max: null, wFirst:null, wLast:null
+      max: null, wFirst:null, wLast:null,
+      stepDays: rows.filter(function(r){ return r.steps != null && r.steps > 0; }).length,
+      stepSum: rows.reduce(function(a,r){ return a + (r.steps || 0); }, 0),
+      stepGoal: rows.filter(function(r){ return (r.steps || 0) >= state.targetSteps; }).length
     };
+    st.stepAvg = st.stepDays ? st.stepSum / st.stepDays : 0;
     rec.forEach(function(r){ if (!st.max || r.intake > st.max.intake) st.max = r; });
     rows.forEach(function(r){
       if (r.weight == null) return;
@@ -1105,8 +1208,12 @@
   function weekNotes(st, prev){
     var out = [];
     var diff = st.avg - state.target;
-    out.push("1日あたり平均 <b>" + fmt(st.avg) + " kcal</b>。目標 " + fmt(state.target) + " kcal に対して <b>" +
-      (diff >= 0 ? "+" : "−") + fmt(Math.abs(diff)) + " kcal</b> でした。");
+    if (st.recDays > 0){
+      out.push("1日あたり平均 <b>" + fmt(st.avg) + " kcal</b>。目標 " + fmt(state.target) + " kcal に対して <b>" +
+        (diff >= 0 ? "+" : "−") + fmt(Math.abs(diff)) + " kcal</b> でした。");
+    } else {
+      out.push("この週は食事の記録がありませんでした。");
+    }
     if (st.recDays > 0){
       out.push("目標内におさまった日は <b>" + st.under + "/" + st.recDays + " 日</b>。" +
         (st.max ? "いちばん多かったのは " + (st.max.date.getMonth()+1) + "/" + st.max.date.getDate() +
@@ -1118,6 +1225,10 @@
     out.push(st.exDays > 0
       ? "運動したのは <b>" + st.exDays + "日</b>、合計 " + st.exMin + "分で <b>" + fmt(st.burn) + " kcal</b> 消費しました。"
       : "この週は運動の記録がありませんでした。10分の早歩きでも記録すると流れがつかめます。");
+    if (st.stepDays > 0){
+      out.push("歩数は1日平均 <b>" + fmt(st.stepAvg) + "歩</b>（記録 " + st.stepDays + "日）。" +
+        (st.stepGoal > 0 ? "目標の " + fmt(state.targetSteps) + "歩を超えた日は <b>" + st.stepGoal + "日</b>。" : "目標の " + fmt(state.targetSteps) + "歩に届いた日はありませんでした。"));
+    }
     if (st.wFirst && st.wLast && st.wFirst.key !== st.wLast.key){
       var dw = st.wLast.weight - st.wFirst.weight;
       out.push("体重は <b>" + fmt1(st.wFirst.weight) + " → " + fmt1(st.wLast.weight) + " kg</b>（" +
@@ -1148,13 +1259,16 @@
     var st = weekStats(st0);
     var prev = weekStats(shiftKey(st0, -7));
 
-    if (st.recDays === 0 && !st.wLast && st.burn === 0){
+    if (st.recDays === 0 && !st.wLast && st.burn === 0 && st.stepDays === 0){
       el("weekly").innerHTML = '<p class="wk-empty">この週の記録はまだありません。<br>「日ごと」に切り替えて記録すると、ここにまとめが出ます。</p>';
       return;
     }
 
     // タイル
     var dAvg = st.avg - state.target;
+    var avgTile = st.recDays
+      ? '<span class="n">' + fmt(st.avg) + '<em>kcal</em></span><span class="s">目標より ' + (dAvg >= 0 ? "+" : "−") + fmt(Math.abs(dAvg)) + ' kcal</span>'
+      : '<span class="n" style="color:var(--muted)">—</span><span class="s">食事の記録なし</span>';
     var wTile, wSub;
     if (st.wFirst && st.wLast && st.wFirst.key !== st.wLast.key){
       var dw = st.wLast.weight - st.wFirst.weight;
@@ -1168,13 +1282,17 @@
       wSub = "体重の記録なし";
     }
     var tiles =
-      '<div class="wk-tile"><span class="eyebrow">1日平均</span>' +
-        '<span class="n">' + fmt(st.avg) + '<em>kcal</em></span>' +
-        '<span class="s">目標より ' + (dAvg >= 0 ? "+" : "−") + fmt(Math.abs(dAvg)) + ' kcal</span></div>' +
+      '<div class="wk-tile"><span class="eyebrow">1日平均</span>' + avgTile + '</div>' +
       '<div class="wk-tile"><span class="eyebrow">体重の変化</span>' + wTile + '<span class="s">' + wSub + '</span></div>' +
       '<div class="wk-tile"><span class="eyebrow">運動</span>' +
         '<span class="n ' + (st.burn > 0 ? "good" : "") + '">' + (st.burn > 0 ? "−" : "") + fmt(st.burn) + '<em>kcal</em></span>' +
         '<span class="s">' + st.exDays + '日 / 合計 ' + st.exMin + '分</span></div>' +
+      '<div class="wk-tile"><span class="eyebrow">歩数</span>' +
+        '<span class="n sm">' + (st.stepDays ? fmt(st.stepAvg) : "—") + '<em>歩 / 日</em></span>' +
+        '<span class="s">' + (st.stepDays ? st.stepGoal + '日が目標達成' : "記録なし") + '</span></div>' +
+      '<div class="wk-tile"><span class="eyebrow">間食</span>' +
+        '<span class="n sm">' + fmt(st.snack) + '<em>kcal</em></span>' +
+        '<span class="s">この週の合計</span></div>' +
       '<div class="wk-tile"><span class="eyebrow">記録できた日</span>' +
         '<span class="n">' + st.recDays + '<em>/ 7日</em></span>' +
         '<span class="s">目標内 ' + st.under + '日</span></div>';
@@ -1194,13 +1312,14 @@
         '<td>' + (r.burn ? '−' + fmt(r.burn) : '<span style="color:var(--muted)">—</span>') + '</td>' +
         '<td>' + (net === null ? '<span style="color:var(--muted)">—</span>' :
           '<span class="' + (net > 0 ? "pos" : "neg") + '">' + (net > 0 ? "+" : "−") + fmt(Math.abs(net)) + '</span>') + '</td>' +
+        '<td>' + (r.steps != null ? fmt(r.steps) : '<span style="color:var(--muted)">—</span>') + '</td>' +
         '<td>' + (r.weight != null ? fmt1(r.weight) : '<span style="color:var(--muted)">—</span>') + '</td>' +
       '</tr>';
     }).join("");
     var table =
       '<div class="wk-block"><h3>日ごとの記録<span>差引 = 摂取 − 運動 − 目標</span></h3>' +
       '<div class="wk-scroll"><table class="wk-table">' +
-        '<thead><tr><th>日付</th><th>摂取</th><th>運動</th><th>差引</th><th>体重</th></tr></thead>' +
+        '<thead><tr><th>日付</th><th>摂取</th><th>運動</th><th>差引</th><th>歩数</th><th>体重</th></tr></thead>' +
         '<tbody>' + body + '</tbody></table></div></div>';
 
     // よく食べたもの
@@ -1265,6 +1384,18 @@
     '{"items":[{"name":"ご飯 茶碗1杯","kcal":234,"confidence":"high"}],"note":"写真全体の短い説明"}'
   ].join("\n");
 
+  var STEP_PROMPT = [
+    "これはスマートフォンの歩数計（ヘルスケア／フィットネスアプリ、歩数ウィジェットなど）の画面です。",
+    "表示されている「その日の歩数」を読み取ってください。",
+    "・歩数（歩 / steps）を表す数値を選んでください。距離(km)・消費カロリー・心拍数・階数は歩数ではありません。",
+    "・カンマや空白を取り除いた整数で答えてください。",
+    "・週や月の合計しか写っていない場合は steps を null にしてください。",
+    "・画面に日付が写っていれば date に YYYY-MM-DD で入れてください（今日と書かれている場合や不明なら null）。",
+    "・距離(km)や消費カロリー(kcal)も表示されていれば入れてください。無ければ null。",
+    "JSONだけで回答してください。形式:",
+    '{"steps":8432,"date":null,"distanceKm":6.1,"kcal":320,"confidence":"high"}'
+  ].join("\n");
+
   var ERR_MSG = {
     not_granted:"写真の読み取りには、このページからClaudeに聞く許可が必要です。もう一度試して「許可」を選んでください。",
     rate_limited:"読み取りの回数制限に達しました。少し時間をおいてからもう一度お試しください。",
@@ -1277,10 +1408,11 @@
     session_expired:"接続が切れました。ページを開き直してください。",
     sampling_disabled:"写真の読み取りが利用できない状態です。手で入力してください。",
     upstream_error:"読み取りに失敗しました。少し時間をおいてお試しください。",
-    no_sample:"この画面では写真の読み取りが使えませんでした。ページを開き直しても直らない場合は、下の「食べたもの」欄から手で入力してください。"
+    no_sample:"この画面では写真の読み取りが使えませんでした。ページを開き直しても直らない場合は、手で入力してください。"
   };
 
-  function openPhoto(slot, mode){
+  function openPhoto(slot, mode, kind){
+    photo.kind = kind || "meal";
     photo.slot = slot || slotByHour();
     var input = el(mode === "camera" ? "cameraInput" : "photoInput");
     input.value = "";
@@ -1315,6 +1447,7 @@
       photo.blob = blob;
       photo.url = URL.createObjectURL(blob);
       photo.items = []; photo.err = "";
+      photo.steps = null; photo.stepsDate = null; photo.useDate = state.sel; photo.alsoEx = false;
       photo.status = "reading";
       photo.open = true;
       renderSheet();
@@ -1329,9 +1462,21 @@
       if (!sm){
         var e = new Error("no sample"); e.code = "no_sample"; throw e;
       }
-      return sm.json(PROMPT, {images:[photo.blob], modelTier:"default", signal:ctl.signal});
+      return sm.json(photo.kind === "steps" ? STEP_PROMPT : PROMPT,
+        {images:[photo.blob], modelTier:"default", signal:ctl.signal});
     })
       .then(function(res){
+        if (photo.kind === "steps"){
+          var n = res && res.steps != null ? Math.round(+res.steps) : NaN;
+          if (!isFinite(n) || n <= 0 || n > 200000){ photo.status = "empty"; renderSheet(); return; }
+          photo.steps = n;
+          var dt = res && typeof res.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(res.date) ? res.date : null;
+          photo.stepsDate = (dt && dt !== state.sel && dt <= dateKey(new Date())) ? dt : null;
+          photo.useDate = state.sel;
+          photo.status = "done";
+          renderSheet();
+          return;
+        }
         var list = (res && Array.isArray(res.items)) ? res.items : [];
         photo.items = list.map(function(x){
           return {
@@ -1375,19 +1520,46 @@
     var img = photo.url ? '<img class="shot" src="' + photo.url + '" alt="撮影した食事の写真">' : "";
     var body = "";
 
+    var isSteps = photo.kind === "steps";
+
     if (photo.status === "reading"){
       el("sheetTitle").textContent = "写真を読み取っています";
       body = img +
-        '<div class="reading"><b>料理とカロリーを読み取り中…</b>' +
+        '<div class="reading"><b>' + (isSteps ? "歩数を読み取り中…" : "料理とカロリーを読み取り中…") + '</b>' +
         '<small>10〜30秒ほどかかります</small><div class="bar"><i></i></div></div>' +
         '<div class="sheet-actions"><button class="ghost" data-sheet="cancel">中止する</button></div>';
     } else if (photo.status === "error" || photo.status === "empty"){
       el("sheetTitle").textContent = "読み取れませんでした";
       body = img +
-        '<p class="sheet-err">' + esc(photo.status === "empty" ? "この写真からは料理を見つけられませんでした。" : photo.err) + '</p>' +
+        '<p class="sheet-err">' + esc(photo.status === "empty"
+          ? (isSteps ? "この写真からは歩数を読み取れませんでした。歩数の数字が大きく写るように撮ってみてください。" : "この写真からは料理を見つけられませんでした。")
+          : photo.err) + '</p>' +
         '<div class="sheet-actions">' +
           '<button class="ghost" data-sheet="close">閉じる</button>' +
           '<button class="go" data-sheet="retry">もう一度読み取る</button>' +
+        '</div>';
+    } else if (isSteps){
+      el("sheetTitle").textContent = "歩数を確認";
+      var sk = stepsKcal(photo.steps, photo.useDate);
+      var dsel = "";
+      if (photo.stepsDate){
+        var a = parseKey(state.sel), c = parseKey(photo.stepsDate);
+        dsel = '<div class="datepick"><span>どの日に記録しますか？</span>' +
+          '<button data-usedate="' + state.sel + '" aria-pressed="' + (photo.useDate === state.sel) + '">' +
+            (a.getMonth()+1) + '/' + a.getDate() + '（表示中）</button>' +
+          '<button data-usedate="' + photo.stepsDate + '" aria-pressed="' + (photo.useDate === photo.stepsDate) + '">' +
+            (c.getMonth()+1) + '/' + c.getDate() + '（写真の日付）</button></div>';
+      }
+      body = img +
+        '<div class="bignum"><input type="number" id="stepsEdit" inputmode="numeric" min="0" max="200000" step="1" value="' + photo.steps + '"><span class="u">歩</span></div>' +
+        dsel +
+        '<label class="check"><input type="checkbox" data-alsoex="1"' + (photo.alsoEx ? " checked" : "") + '>' +
+          '<span>歩いた分を運動としても記録する（約 ' + fmt(sk) + ' kcal）' +
+          '<small>「残り」に反映されます。ウォーキングを別に記録している日は二重になるので外してください。</small></span></label>' +
+        '<p class="sheet-note">読み取りは<b>推定</b>です。違っていたら数字を直せます。</p>' +
+        '<div class="sheet-actions">' +
+          '<button class="ghost" data-sheet="close">やめる</button>' +
+          '<button class="go" data-sheet="savesteps">歩数を記録</button>' +
         '</div>';
     } else {
       el("sheetTitle").textContent = "読み取り結果を確認";
@@ -1438,6 +1610,24 @@
     var a = t.dataset.sheet;
     if (a === "close" || a === "cancel"){ closeSheet(); return; }
     if (a === "retry"){ photo.status = "reading"; photo.err = ""; renderSheet(); analyze(); return; }
+    if (t.dataset.usedate){ photo.useDate = t.dataset.usedate; renderSheet(); return; }
+    if (a === "savesteps"){
+      var f = el("stepsEdit");
+      var n = f ? Math.round(+f.value) : photo.steps;
+      if (!isFinite(n) || n < 0){ return; }
+      var key = photo.useDate || state.sel;
+      var alsoEx = photo.alsoEx, kc = stepsKcal(n, key);
+      var day = touchDay(key);
+      day.steps = n;
+      if (alsoEx && kc > 0){
+        day.exercise = day.exercise.concat([{id:uid(), name:"ウォーキング（歩数から）", min:Math.round(n/100), kcal:kc, at:new Date().toISOString()}]);
+      }
+      persistDay(key);
+      if (key !== state.sel) state.sel = key;
+      closeSheet(); render();
+      flash(fmt(n) + "歩を記録しました" + (alsoEx && kc > 0 ? "（運動 −" + fmt(kc) + " kcal も追加）" : ""));
+      return;
+    }
     if (a === "save"){
       var picked = photo.items.filter(function(x){ return x.on; });
       var slot = photo.slot;
@@ -1460,6 +1650,7 @@
   el("sheetBody").addEventListener("change", function(e){
     var d = e.target.dataset;
     if (d && d.on != null){ photo.items[+d.on].on = e.target.checked; renderSheet(); }
+    else if (d && d.alsoex != null){ photo.alsoEx = e.target.checked; }
   });
 
   function focusFirst(slot){
@@ -1484,6 +1675,7 @@
   el("viewWeek").addEventListener("click", function(){ ui.view = "week"; ui.open = null; render(); });
   el("tabKcal").addEventListener("click", function(){ ui.tab = "kcal"; renderChart(); });
   el("tabWeight").addEventListener("click", function(){ ui.tab = "weight"; renderChart(); });
+  el("tabSteps").addEventListener("click", function(){ ui.tab = "steps"; renderChart(); });
 
   el("goalBtn").addEventListener("click", function(){
     var s = el("settings");
@@ -1492,6 +1684,7 @@
     if (!s.hidden){
       el("targetInput").value = state.target;
       el("targetWeightInput").value = state.targetWeight != null ? state.targetWeight : "";
+      el("targetStepsInput").value = state.targetSteps;
       el("metNote").textContent = "消費カロリーの計算体重：" + fmt1(calcWeight(state.sel)) + " kg";
       el("targetInput").focus();
     }
@@ -1502,19 +1695,23 @@
     var wRaw = el("targetWeightInput").value;
     var tw = wRaw === "" ? null : Math.round(+wRaw*10)/10;
     if (tw !== null && (!isFinite(tw) || tw < 20 || tw > 300)){ flash("目標体重は20〜300kgで入力してください"); return; }
-    state.target = v; state.targetWeight = tw;
+    var stRaw = Math.round(+el("targetStepsInput").value);
+    if (!isFinite(stRaw) || stRaw < 1000 || stRaw > 50000){ flash("目標歩数は1000〜50000で入力してください"); return; }
+    state.target = v; state.targetWeight = tw; state.targetSteps = stRaw;
     persistSettings();
     el("settings").hidden = true;
     el("goalBtn").setAttribute("aria-expanded","false");
     render();
     flash("目標を保存しました");
   });
-  ["targetInput","targetWeightInput"].forEach(function(id){
+  ["targetInput","targetWeightInput","targetStepsInput"].forEach(function(id){
     el(id).addEventListener("keydown", function(e){ if (e.key === "Enter") el("targetSave").click(); });
   });
 
   el("weightInput").addEventListener("change", function(){ setWeight("weight", this.value.trim()); });
   el("fatInput").addEventListener("change", function(){ setWeight("fat", this.value.trim()); });
+  el("stepsInput").addEventListener("change", function(){ setWeight("steps", this.value.trim()); });
+  el("btnSteps").addEventListener("click", function(){ openPhoto(null, "camera", "steps"); });
 
   el("logs").addEventListener("click", function(e){
     var t = e.target.closest("button"); if (!t) return;
@@ -1595,6 +1792,7 @@
   if (local){
     if (local.target) state.target = local.target;
     if (typeof local.targetWeight === "number") state.targetWeight = local.targetWeight;
+    if (typeof local.targetSteps === "number") state.targetSteps = local.targetSteps;
     if (local.days){
       Object.keys(local.days).forEach(function(k){ state.days[k] = normDay(local.days[k], k); });
     }
@@ -1616,8 +1814,9 @@
           var v = snap.data() || {};
           if (typeof v.targetKcal === "number") state.target = v.targetKcal;
           state.targetWeight = typeof v.targetWeight === "number" ? v.targetWeight : null;
+          if (typeof v.targetSteps === "number") state.targetSteps = v.targetSteps;
         } else if (local && (local.target || local.targetWeight != null)){
-          db.doc("settings/main").set({targetKcal:state.target, targetWeight:state.targetWeight}).catch(function(){});
+          db.doc("settings/main").set({targetKcal:state.target, targetWeight:state.targetWeight, targetSteps:state.targetSteps}).catch(function(){});
         }
         render();
       }, function(){});
@@ -1633,11 +1832,11 @@
           if (local && local.days){
             Object.keys(local.days).forEach(function(k){
               var d = normDay(local.days[k], k);
-              if (!d.items.length && !d.exercise.length && d.weight == null) return;
+              if (!d.items.length && !d.exercise.length && d.weight == null && d.steps == null) return;
               var cur = next[k];
-              if (cur && (cur.items.length || cur.exercise.length || cur.weight != null)) return;
+              if (cur && (cur.items.length || cur.exercise.length || cur.weight != null || cur.steps != null)) return;
               state.days[k] = d;
-              db.doc("days/"+k).set({date:k, items:d.items, exercise:d.exercise, weight:d.weight, fat:d.fat}).catch(function(){});
+              db.doc("days/"+k).set({date:k, items:d.items, exercise:d.exercise, weight:d.weight, fat:d.fat, steps:d.steps}).catch(function(){});
             });
           }
         }
