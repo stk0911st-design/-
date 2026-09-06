@@ -1,0 +1,40 @@
+# ─────────────────────────────────────────────
+# 実データは絶対にリポジトリに入れない（社外秘）
+# ─────────────────────────────────────────────
+
+# 入力データ（実際の会社データ）
+input/*
+!input/README.md
+
+# 出力レポート（経営情報）
+output/daily/*
+output/weekly/*
+output/monthly/*
+!output/daily/.gitkeep
+!output/weekly/.gitkeep
+!output/monthly/.gitkeep
+
+# ログ（ファイル名・データ内容を含む可能性がある）
+logs/*
+!logs/.gitkeep
+
+# 保管データ
+archive/*
+!archive/.gitkeep
+!archive/README.md
+
+# Python のキャッシュ（自動生成物）
+__pycache__/
+*.pyc
+
+# 万一の秘密情報の混入防止
+*.env
+.env.*
+# ただし config/runtime.env は設定ファイルのため追跡する（秘密情報は書かない規約）
+!config/runtime.env
+*.pem
+*.key
+*.p12
+credentials*
+*secret*
+*token*
