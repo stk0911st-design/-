@@ -5,7 +5,7 @@
 | 仕組み | 内容 | ドキュメント |
 | --- | --- | --- |
 | 営業日報 まとめメール | 日報アプリの入力を翌営業日の朝にまとめて送る | このファイル ／ `docs/routine-prompt.md` |
-| 恵比寿 物件在庫の日次蓄積 | 恵比寿の売り物件を毎日ためて、在庫数と月次の動きを追う | `docs/ebisu-land-stock.md` |
+| 恵比寿 物件在庫の日次蓄積 | 恵比寿の売り物件を毎日ためて、在庫数と月次の動きを追う | `docs/ebisu-land-stock-quickstart.md`（まず試す）／ `docs/ebisu-land-stock.md`（仕様） |
 
 ※ スプレッドシートID・宛先アドレスなどの社内情報はこのリポジトリには置かず、
 実行環境側（Claude のルーティン設定、または Apps Script のスクリプトプロパティ）で管理します。
@@ -28,8 +28,12 @@
 掲載が消えた件数は「掲載終了」として数えます。成約と取下げの合計であり、
 成約件数そのものではありません。詳しくは `docs/ebisu-land-stock.md`。
 
+まず試すなら `docs/ebisu-land-stock-quickstart.md`（20分）。手元のリストを1回入れて、
+在庫件数と集計が出るところまで確認できます。毎日の収集方法はその後に決められます。
+
 関連ファイル：`gas/LandStock.gs` ／ `gas/LandStockMailer.gs` ／ `gas/LandStockReinfolib.gs` ／
-`test/landstock.test.js` ／ `docs/ebisu-land-stock.md` ／ `docs/ebisu-land-stock-routine.md`
+`test/landstock.test.js` ／ `docs/ebisu-land-stock-quickstart.md` ／ `docs/ebisu-land-stock.md` ／
+`docs/ebisu-land-stock-routine.md`
 
 ---
 

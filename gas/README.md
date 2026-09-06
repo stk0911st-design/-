@@ -43,13 +43,15 @@
 | `LandStockMailer.gs` | 毎朝のまとめメール（任意） |
 | `LandStockReinfolib.gs` | 国交省APIから実際の成約価格を取り込む（任意） |
 
-導入手順・シート構成・スクリプトプロパティの一覧は `docs/ebisu-land-stock.md` を参照してください。
+初めて動かすときは `docs/ebisu-land-stock-quickstart.md`（まず試す・20分）から。
+シート構成・スクリプトプロパティの一覧は `docs/ebisu-land-stock.md` を参照してください。
 
 ## 主な関数
 
 | 関数 | 用途 |
 | --- | --- |
 | `setupLandStockSheets` | 初回にシートを作る |
+| `previewLandStockIntake` | 取込シートの読み取り結果をログに出す（シートは変更しない） |
 | `runDailyLandStock` | 毎日のトリガーから呼ぶ本体 |
 | `previewLandStockMail` | メール文面をログに出す（送信しない） |
 | `sendLandStockMail` | まとめメールを送る（先に集計も実行します） |

@@ -83,6 +83,73 @@ function setupLandStockSheets() {
   Logger.log('シートを用意しました。「取込」シートに物件を貼り付けてから runDailyLandStock を実行してください。');
 }
 
+/**
+ * 「取込」シートの中身をどう読み取るか、シートを一切変えずに実行ログへ出す。
+ * 手元のデータを初めて入れたとき、種別・価格・面積・エリア判定が
+ * 意図どおりに読めているかを、集計する前に確かめるために使う。
+ */
+function previewLandStockIntake() {
+  var ss = lsOpenSpreadsheet_();
+  var today = lsToday_();
+  var sh = lsSheet_(ss, LS_SHEET.intake, LS_HEAD_INTAKE);
+  var last = sh.getLastRow();
+  if (last < 2) {
+    Logger.log('「取込」シートにデータがありません。2行目以降に物件を貼り付けてください。');
+    return { total: 0 };
+  }
+
+  var header = sh.getRange(1, 1, 1, sh.getLastColumn()).getDisplayValues()[0];
+  var values = sh.getRange(2, 1, last - 1, sh.getLastColumn()).getValues();
+  var idx = lsHeaderIndex_(header);
+  var master = lsReadMaster_(ss);
+
+  var missing = LS_HEAD_INTAKE.filter(function (h) { return idx[h] === undefined; });
+  if (missing.length) {
+    Logger.log('見出しが見つからない列: ' + missing.join('、') + '（空欄として扱います）');
+  }
+
+  var lines = [];
+  var counts = { total: 0, inArea: 0, outArea: 0, known: 0, fresh: 0, noPrice: 0, noArea: 0 };
+  var byType = {};
+
+  values.forEach(function (row, i) {
+    var rec = lsBuildRecord_(row, idx, today);
+    if (!rec) return;
+    counts.total++;
+    var inArea = lsInArea_(rec.address);
+    if (inArea) counts.inArea++; else counts.outArea++;
+    if (master.byKey[rec.key]) counts.known++; else counts.fresh++;
+    if (!lsIsNum_(rec.price)) counts.noPrice++;
+    if (!lsIsNum_(rec.landArea) && !lsIsNum_(rec.bldgArea)) counts.noArea++;
+    byType[rec.type] = (byType[rec.type] || 0) + 1;
+
+    lines.push([i + 2, rec.date, rec.type, rec.address,
+      inArea ? '対象' : 'エリア外',
+      lsIsNum_(rec.price) ? rec.price + '万円' : '価格読めず(' + lsText_(lsPick_(row, idx, '価格')) + ')',
+      lsIsNum_(rec.landArea) ? rec.landArea + '㎡' : '土地-',
+      lsIsNum_(rec.bldgArea) ? rec.bldgArea + '㎡' : '建物-',
+      master.byKey[rec.key] ? '既存' : '新規',
+      rec.key].join(' | '));
+  });
+
+  Logger.log('--- 読み取り結果（シートは変更していません）');
+  lines.slice(0, 200).forEach(function (l) { Logger.log(l); });
+  if (lines.length > 200) Logger.log('... 以下 ' + (lines.length - 200) + '行は省略');
+
+  Logger.log('--- 集計');
+  Logger.log('全 ' + counts.total + '行 ／ 対象 ' + counts.inArea + '件 ／ エリア外 ' + counts.outArea + '件');
+  Logger.log('種別の内訳: ' + Object.keys(byType).map(function (t) {
+    return t + ' ' + byType[t] + '件';
+  }).join('、'));
+  Logger.log('マスタに既存 ' + counts.known + '件 ／ 新規 ' + counts.fresh + '件');
+  if (counts.noPrice) Logger.log('価格を読めなかった行: ' + counts.noPrice + '件');
+  if (counts.noArea) Logger.log('面積が空の行: ' + counts.noArea + '件');
+  Logger.log('エリア判定の語: ' + lsProp_('LS_AREA_KEYWORDS', '恵比寿'));
+  Logger.log('問題なければ runDailyLandStock を実行してください。');
+
+  return counts;
+}
+
 /** 集計だけやり直したいとき用（取込・CSV読み込みはしない）。 */
 function rebuildLandStockSummaries() {
   var ss = lsOpenSpreadsheet_();
@@ -142,7 +209,7 @@ function lsRunFor_(ss, ymd) {
  * 「取込」シートから対象日の行を読む。
  * 取得日が空の行は当日ぶんとして扱い、翌日以降に二重計上しないよう日付を書き戻す。
  */
-function lsReadIntake_(ss, ymd) {
+function lsReadIntake_(ss, ymd, noStamp) {
   var sh = lsSheet_(ss, LS_SHEET.intake, LS_HEAD_INTAKE);
   var last = sh.getLastRow();
   if (last < 2) {
@@ -170,9 +237,11 @@ function lsReadIntake_(ss, ymd) {
     rows.push(rec);
   });
 
-  stamped.forEach(function (rowNumber) {
-    sh.getRange(rowNumber, dateCol + 1).setValue(ymd);
-  });
+  if (!noStamp) {
+    stamped.forEach(function (rowNumber) {
+      sh.getRange(rowNumber, dateCol + 1).setValue(ymd);
+    });
+  }
 
   return { rows: rows, skipped: skipped };
 }
