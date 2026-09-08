@@ -23,6 +23,7 @@
 | パス | 用途 |
 | --- | --- |
 | `notes/README.md` | ノートの使い方 |
+| `notes/profile.md` | 本人・会社の基本情報と指示の一覧（最初に読む） |
 | `notes/todo.md` | 現在のTODO（重要度順）。完了したものは日記へ移す |
 | `notes/daily/YYYY-MM-DD.md` | その日の日記（出来事／完了／未完了／明日のTODO） |
 | `notes/projects/<案件名>.md` | 案件・物件ごとの経緯メモ |

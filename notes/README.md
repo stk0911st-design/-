@@ -19,6 +19,7 @@ Claude が会話をまたいで覚えておくための記録場所です。
 
 | ファイル | 内容 |
 | --- | --- |
+| `profile.md` | 本人・会社の基本情報と指示の一覧 |
 | `todo.md` | 現在のTODO。重要度順 |
 | `daily/YYYY-MM-DD.md` | 日記。`daily/_template.md` を複製して使う |
 | `projects/<案件名>.md` | 案件ごとの経緯。`projects/_template.md` を複製して使う |
