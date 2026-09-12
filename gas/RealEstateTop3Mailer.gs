@@ -4,15 +4,16 @@
  * 東証33業種区分「不動産業」の上場銘柄について、その日の値上がり率が高い上位3社を
  * 毎日 21:00（JST）にメール送信します。
  *
- * 株価はスプレッドシート上の GOOGLEFINANCE 関数から取得します。
- * 外部APIキーや株価サイトのスクレイピングは不要で、Google内部だけで完結します。
+ * 株価は UrlFetchApp で stooq から取得し、取得できなかった銘柄だけ Yahoo Finance で補います。
+ * Apps Script は Google のサーバー上で動くため、APIキーなしでそのまま取得できます。
+ * （GOOGLEFINANCE 関数は東証銘柄に対応していないため使いません）
  *
  * 宛先などの情報はスクリプトプロパティで管理し、このファイルには持ちません。
  *
  * 主な関数:
  *   initUniverseSheet()            銘柄マスタを初期リストで作成する（最初に1回）
  *   importUniverseFromJpx()        JPXの上場銘柄一覧から不動産業の全銘柄を取り込む（推奨）
- *   refreshUniverseNames()         銘柄マスタの銘柄名を GOOGLEFINANCE で埋め直す（コード確認用）
+ *   validateUniverse()             銘柄マスタの各コードで株価が取れるか確認する
  *   previewRealEstateTop3()        送信せずに下書きを作成して内容を確認する
  *   sendRealEstateTop3()           集計してメール送信する（トリガーから呼ばれる）
  *   setupRealEstateTop3Trigger()   毎日21時のトリガーを設定する
@@ -26,10 +27,9 @@ var RE_PROP_LAST_SENT = 'RE_TOP3_LAST_SENT_DATE'; // 最後に送信した取引
 
 // ---- 定数 --------------------------------------------------------------
 var RE_SHEET_UNIVERSE = '銘柄マスタ';
-var RE_SHEET_CALC = '_株価計算用';
 var RE_TOP_N = 3;
-var RE_BENCHMARK_CODE = '8801'; // 最終取引日の判定に使う代表銘柄（三井不動産）
 var RE_TZ = 'Asia/Tokyo';
+var RE_FETCH_BATCH = 20; // UrlFetchApp.fetchAll の1回あたりの件数
 var RE_TARGET_SECTOR = '不動産業';
 var RE_JPX_LIST_URL =
   'https://www.jpx.co.jp/markets/statistics-equities/misc/tvdivq0000001vg2-att/data_j.xls';
@@ -39,12 +39,23 @@ var RE_JPX_LIST_URL =
  * JPX取り込み（importUniverseFromJpx）を実行するまでの暫定リストで、
  * 東証「不動産業」の全銘柄ではありません。恒久運用ではJPX取り込みを使ってください。
  */
-var RE_SEED_CODES = [
-  '2337', '3003', '3230', '3231', '3241', '3242', '3244', '3245', '3246', '3248',
-  '3252', '3254', '3261', '3276', '3277', '3284', '3288', '3289', '3291', '3294',
-  '3299', '3300', '3457', '3458', '3465', '3475', '3482', '3484', '3486', '3491',
-  '3496', '3498', '8801', '8802', '8803', '8804', '8830', '8841', '8842', '8844',
-  '8848', '8850', '8860', '8864', '8871', '8877', '8892'
+var RE_SEED_STOCKS = [
+  ['2337', 'いちご'], ['3003', 'ヒューリック'], ['3230', 'スター・マイカ・ホールディングス'],
+  ['3231', '野村不動産ホールディングス'], ['3241', 'ウィル'], ['3242', 'アーバネットコーポレーション'],
+  ['3244', 'サムティ'], ['3245', 'ディア・ライフ'], ['3246', 'コーセーアールイー'],
+  ['3248', 'アールエイジ'], ['3252', '地主'], ['3254', 'プレサンスコーポレーション'],
+  ['3261', 'グランディーズ'], ['3276', '日本管理センター'], ['3277', 'サンセイランディック'],
+  ['3284', 'フージャースホールディングス'], ['3288', 'オープンハウスグループ'],
+  ['3289', '東急不動産ホールディングス'], ['3291', '飯田グループホールディングス'],
+  ['3294', 'イーグランド'], ['3299', 'ムゲンエステート'], ['3300', 'AMBITION DX HOLDINGS'],
+  ['3457', 'And Doo ホールディングス'], ['3458', 'シーアールイー'], ['3465', 'ケイアイスター不動産'],
+  ['3475', 'グッドコムアセット'], ['3482', 'ロードスターキャピタル'], ['3484', 'テンポイノベーション'],
+  ['3486', 'グローバル・リンク・マネジメント'], ['3491', 'GA technologies'], ['3496', 'アズーム'],
+  ['3498', '霞ヶ関キャピタル'], ['8801', '三井不動産'], ['8802', '三菱地所'], ['8803', '平和不動産'],
+  ['8804', '東京建物'], ['8830', '住友不動産'], ['8841', 'テーオーシー'], ['8842', '東京楽天地'],
+  ['8844', 'コスモスイニシア'], ['8848', 'レオパレス21'], ['8850', 'スターツコーポレーション'],
+  ['8860', 'フジ住宅'], ['8864', '空港施設'], ['8871', 'ゴールドクレスト'], ['8877', 'エスリード'],
+  ['8892', '日本エスコン']
 ];
 
 // =======================================================================
@@ -149,13 +160,19 @@ function buildRealEstateTop3_(opts) {
   }
 
   evaluated.sort(function (a, b) { return b.rate - a.rate; });
-  var top = evaluated.slice(0, RE_TOP_N);
+
+  // 「値上がり率」なので、値下がりした銘柄は上位に入れない。
+  // 値上がりが3社に満たない日は、その社数だけを載せる。
+  var gainers = evaluated.filter(function (s) { return s.rate > 0; });
+  var top = gainers.slice(0, RE_TOP_N);
 
   var summary = {
     dataDate: dataDate,
     universeCount: universe.rows.length,
     evaluatedCount: evaluated.length,
     skippedCount: skipped,
+    gainerCount: gainers.length,
+    best: evaluated[0], // 値上がり銘柄が1社もない日の参考用
     minVolume: minVolume,
     isSeedUniverse: universe.isSeed
   };
@@ -189,82 +206,155 @@ function readUniverse_() {
 }
 
 /**
- * GOOGLEFINANCE で株価と最終取引日を取得する。
- * 計算用シートに数式を書き込み、評価が終わるのを待ってから値を読み取る。
+ * 各銘柄の終値・前営業日終値・出来高を取得する。
+ *
+ * 主データ源は stooq（日足CSV）。取得できなかった銘柄だけ Yahoo Finance（JSON）で補う。
+ * 最終取引日を全銘柄の最大日付から決め、その日のデータがない銘柄は集計から外す。
  */
 function fetchMarketData_(codes) {
-  var ss = SpreadsheetApp.getActive();
-  var sh = ss.getSheetByName(RE_SHEET_CALC);
-  if (!sh) {
-    sh = ss.insertSheet(RE_SHEET_CALC);
-    sh.hideSheet();
+  var byCode = fetchFromStooq_(codes);
+
+  var missing = codes.filter(function (code) { return !byCode[code]; });
+  if (missing.length) {
+    Logger.log('stooqで取得できなかった ' + missing.length + '銘柄を Yahoo Finance で再取得します。');
+    var fallback = fetchFromYahoo_(missing);
+    Object.keys(fallback).forEach(function (code) { byCode[code] = fallback[code]; });
   }
-  sh.clear();
 
-  var rows = codes.map(function (code) {
-    var t = '"TYO:' + code + '"';
-    return [
-      "'" + code,
-      '=IFERROR(GOOGLEFINANCE(' + t + ',"name"),"")',
-      '=IFERROR(GOOGLEFINANCE(' + t + ',"price"),"")',
-      '=IFERROR(GOOGLEFINANCE(' + t + ',"closeyest"),"")',
-      '=IFERROR(GOOGLEFINANCE(' + t + ',"volume"),"")'
-    ];
+  var latest = null;
+  Object.keys(byCode).forEach(function (code) {
+    var d = byCode[code].date;
+    if (d && (!latest || d > latest)) latest = d;
   });
-  sh.getRange(1, 1, rows.length, 5).setValues(rows);
 
-  // 最終取引日の判定用に、代表銘柄の直近終値履歴を取得する。
-  sh.getRange('H1').setFormula(
-    '=IFERROR(GOOGLEFINANCE("TYO:' + RE_BENCHMARK_CODE + '","close",TODAY()-14,TODAY()),"")');
-
-  SpreadsheetApp.flush();
-  waitForGoogleFinance_(sh, rows.length);
-
-  var values = sh.getRange(1, 1, rows.length, 5).getValues();
-  var history = sh.getRange(1, 8, 25, 2).getValues();
-
-  var quotes = values.map(function (v) {
+  var quotes = codes.map(function (code) {
+    var q = byCode[code];
+    // 最終取引日のデータがない銘柄（売買停止・上場廃止など）は空にして集計から外す
+    if (!q || q.date !== latest) {
+      return { code: code, name: '', price: '', prevClose: '', volume: '' };
+    }
     return {
-      code: String(v[0]).trim(),
-      name: String(v[1] || '').trim(),
-      price: v[2],
-      prevClose: v[3],
-      volume: v[4]
+      code: code,
+      name: '',
+      price: q.close,
+      prevClose: q.prevClose,
+      volume: (q.volume === null || q.volume === undefined) ? '' : q.volume
     };
   });
 
+  var got = quotes.filter(function (q) { return q.price !== ''; }).length;
+  Logger.log('株価取得: ' + got + '/' + codes.length + '銘柄　最終取引日: ' + latest);
+
+  return { quotes: quotes, latestTradingDate: latest };
+}
+
+/** stooq の日足CSVから取得する。 */
+function fetchFromStooq_(codes) {
+  var now = new Date();
+  var d2 = Utilities.formatDate(now, RE_TZ, 'yyyyMMdd');
+  var d1 = Utilities.formatDate(new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000), RE_TZ, 'yyyyMMdd');
+
+  return fetchInBatches_(codes, function (code) {
+    return {
+      url: 'https://stooq.com/q/d/l/?s=' + code + '.jp&d1=' + d1 + '&d2=' + d2 + '&i=d',
+      muteHttpExceptions: true
+    };
+  }, parseStooqCsv_, 'stooq');
+}
+
+/** Yahoo Finance のチャートAPI（JSON）から取得する。 */
+function fetchFromYahoo_(codes) {
+  return fetchInBatches_(codes, function (code) {
+    return {
+      url: 'https://query1.finance.yahoo.com/v8/finance/chart/' + code +
+        '.T?range=1mo&interval=1d',
+      muteHttpExceptions: true,
+      headers: { 'User-Agent': 'Mozilla/5.0' }
+    };
+  }, parseYahooChart_, 'Yahoo Finance');
+}
+
+/** リクエストをまとめて投げ、レスポンスを parser で解釈する共通処理。 */
+function fetchInBatches_(codes, buildRequest, parser, sourceName) {
+  var out = {};
+  for (var i = 0; i < codes.length; i += RE_FETCH_BATCH) {
+    var batch = codes.slice(i, i + RE_FETCH_BATCH);
+    var responses;
+    try {
+      responses = UrlFetchApp.fetchAll(batch.map(buildRequest));
+    } catch (e) {
+      Logger.log(sourceName + ' の取得に失敗しました: ' + e);
+      continue;
+    }
+    responses.forEach(function (res, j) {
+      var body = res.getResponseCode() === 200 ? res.getContentText() : '';
+      var parsed = parser(body);
+      if (parsed) out[batch[j]] = parsed;
+    });
+    if (i + RE_FETCH_BATCH < codes.length) Utilities.sleep(500);
+  }
+  return out;
+}
+
+/**
+ * stooq の日足CSVを解釈する。
+ * 形式: Date,Open,High,Low,Close,Volume（日付の昇順）
+ */
+function parseStooqCsv_(text) {
+  if (!text || text.indexOf('Date,') !== 0) return null;
+
+  var lines = text.replace(/\r/g, '').split('\n').filter(function (l) { return l.trim(); });
+  if (lines.length < 3) return null; // ヘッダー＋2営業日分が最低限必要
+
+  var last = lines[lines.length - 1].split(',');
+  var prev = lines[lines.length - 2].split(',');
+  var close = Number(last[4]);
+  var prevClose = Number(prev[4]);
+  var volume = Number(last[5]);
+  if (!isFinite(close) || !isFinite(prevClose) || close <= 0 || prevClose <= 0) return null;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(last[0])) return null;
+
   return {
-    quotes: quotes,
-    latestTradingDate: latestTradingDateFrom_(history)
+    date: last[0],
+    close: close,
+    prevClose: prevClose,
+    volume: isFinite(volume) ? volume : null
   };
 }
 
-/** GOOGLEFINANCE の "Loading..." が消えるまで待つ。 */
-function waitForGoogleFinance_(sh, numRows) {
-  var deadline = Date.now() + 120 * 1000;
-  while (Date.now() < deadline) {
-    SpreadsheetApp.flush();
-    var priceCells = sh.getRange(1, 3, numRows, 1).getDisplayValues();
-    var histCells = sh.getRange(1, 8, 25, 2).getDisplayValues();
-    var pending = priceCells.concat(histCells).some(function (row) {
-      return row.some(function (cell) { return String(cell).indexOf('Loading') >= 0; });
-    });
-    if (!pending) return;
-    Utilities.sleep(3000);
-  }
-  Logger.log('GOOGLEFINANCE の計算完了を待ちきれませんでした。取得できた分で集計します。');
-}
+/** Yahoo Finance のチャートAPIのJSONを解釈する。 */
+function parseYahooChart_(text) {
+  if (!text) return null;
 
-/** 終値履歴の配列から最終取引日（yyyy-MM-dd）を取り出す。 */
-function latestTradingDateFrom_(history) {
-  var latest = null;
-  history.forEach(function (row) {
-    var d = row[0];
-    if (d instanceof Date && !isNaN(d.getTime())) {
-      if (!latest || d.getTime() > latest.getTime()) latest = d;
-    }
-  });
-  return latest ? Utilities.formatDate(latest, RE_TZ, 'yyyy-MM-dd') : null;
+  var json;
+  try {
+    json = JSON.parse(text);
+  } catch (e) {
+    return null;
+  }
+
+  var result = json && json.chart && json.chart.result && json.chart.result[0];
+  var quote = result && result.indicators && result.indicators.quote && result.indicators.quote[0];
+  if (!result || !result.timestamp || !quote) return null;
+
+  var closes = quote.close || [];
+  var volumes = quote.volume || [];
+  var filled = [];
+  for (var i = 0; i < closes.length; i++) {
+    if (closes[i] !== null && closes[i] !== undefined) filled.push(i);
+  }
+  if (filled.length < 2) return null;
+
+  var last = filled[filled.length - 1];
+  var prev = filled[filled.length - 2];
+  var volume = volumes[last];
+
+  return {
+    date: Utilities.formatDate(new Date(result.timestamp[last] * 1000), RE_TZ, 'yyyy-MM-dd'),
+    close: Number(closes[last]),
+    prevClose: Number(closes[prev]),
+    volume: (volume === null || volume === undefined) ? null : Number(volume)
+  };
 }
 
 // =======================================================================
@@ -273,8 +363,8 @@ function latestTradingDateFrom_(history) {
 
 function buildSubject_(dataDate, top) {
   var label = formatDateLabel_(dataDate);
-  var head = top.length ? top[0].name + ' ' + formatRate_(top[0].rate) : '';
-  return '【不動産株 値上がり率TOP3】' + label + '　' + head;
+  if (!top.length) return '【不動産株 値上がり率TOP3】' + label + '　値上がりした銘柄はありません';
+  return '【不動産株 値上がり率TOP3】' + label + '　' + top[0].name + ' ' + formatRate_(top[0].rate);
 }
 
 function buildTextBody_(top, summary) {
@@ -286,12 +376,30 @@ function buildTextBody_(top, summary) {
     ' の東証「不動産業」上場銘柄のうち、値上がり率が高い上位' + RE_TOP_N + '社をお届けします。');
   lines.push('');
 
-  top.forEach(function (s, i) {
-    lines.push((i + 1) + '位　' + s.name + '（' + s.code + '）　' + formatRate_(s.rate));
-    lines.push('　　終値 ' + formatPrice_(s.price) + '円' +
-      '（前日終値 ' + formatPrice_(s.prevClose) + '円 / 前日比 ' + formatDiff_(s.diff) + '円）');
+  if (!top.length) {
+    lines.push('本日は値上がりした銘柄がありませんでした。');
+    if (summary.best) {
+      lines.push('');
+      lines.push('（参考）下落率が最も小さかった銘柄');
+      lines.push('　　' + summary.best.name + '（' + summary.best.code + '）　' +
+        formatRate_(summary.best.rate));
+      lines.push('　　終値 ' + formatPrice_(summary.best.price) + '円' +
+        '（前日終値 ' + formatPrice_(summary.best.prevClose) + '円 / 前日比 ' +
+        formatDiff_(summary.best.diff) + '円）');
+    }
     lines.push('');
-  });
+  } else {
+    if (top.length < RE_TOP_N) {
+      lines.push('※ 本日値上がりした銘柄は' + summary.gainerCount + '社のみでした。');
+      lines.push('');
+    }
+    top.forEach(function (s, i) {
+      lines.push((i + 1) + '位　' + s.name + '（' + s.code + '）　' + formatRate_(s.rate));
+      lines.push('　　終値 ' + formatPrice_(s.price) + '円' +
+        '（前日終値 ' + formatPrice_(s.prevClose) + '円 / 前日比 ' + formatDiff_(s.diff) + '円）');
+      lines.push('');
+    });
+  }
 
   lines.push('■ 集計条件');
   lines.push('・対象：東証33業種区分「' + RE_TARGET_SECTOR + '」の上場銘柄');
@@ -300,7 +408,7 @@ function buildTextBody_(top, summary) {
     (summary.skippedCount ? ' / 除外 ' + summary.skippedCount + '社' : '') + '）');
   lines.push('・基準：' + formatDateLabel_(summary.dataDate) + ' の終値と前営業日終値の比較');
   lines.push('・除外：出来高が' + summary.minVolume + '以下の銘柄、株価を取得できなかった銘柄');
-  lines.push('・出所：GOOGLEFINANCE（Google Finance）');
+  lines.push('・出所：stooq（取得できない銘柄は Yahoo Finance で補完）');
   if (summary.isSeedUniverse) {
     lines.push('');
     lines.push('※ 銘柄マスタが初期リストのままです。importUniverseFromJpx() を実行すると');
@@ -319,6 +427,19 @@ function buildHtmlBody_(top, summary) {
   h.push('<p>お世話になっております。<br>' + escapeHtml_(formatDateLabel_(summary.dataDate)) +
     ' の東証「' + RE_TARGET_SECTOR + '」上場銘柄のうち、値上がり率が高い上位' + RE_TOP_N + '社をお届けします。</p>');
 
+  if (!top.length) {
+    h.push('<p><strong>本日は値上がりした銘柄がありませんでした。</strong></p>');
+    if (summary.best) {
+      h.push('<p style="font-size:13px;color:#555">（参考）下落率が最も小さかった銘柄：' +
+        escapeHtml_(summary.best.name) + '（' + summary.best.code + '）　' +
+        formatRate_(summary.best.rate) + '　終値 ' + formatPrice_(summary.best.price) + '円</p>');
+    }
+  }
+  if (top.length < RE_TOP_N && top.length > 0) {
+    h.push('<p style="font-size:13px;color:#a15c00">※ 本日値上がりした銘柄は' +
+      summary.gainerCount + '社のみでした。</p>');
+  }
+  if (top.length) {
   h.push('<table style="border-collapse:collapse;margin:16px 0">');
   h.push('<tr style="background:#f2f4f7">' +
     ['順位', '銘柄', 'コード', '終値', '前日比', '騰落率'].map(function (t) {
@@ -337,6 +458,7 @@ function buildHtmlBody_(top, summary) {
       '</tr>');
   });
   h.push('</table>');
+  }
 
   h.push('<p style="font-size:12px;color:#555">');
   h.push('■ 集計条件<br>');
@@ -346,7 +468,7 @@ function buildHtmlBody_(top, summary) {
     (summary.skippedCount ? ' / 除外 ' + summary.skippedCount + '社' : '') + '）<br>');
   h.push('・基準：' + escapeHtml_(formatDateLabel_(summary.dataDate)) + ' の終値と前営業日終値の比較<br>');
   h.push('・除外：出来高が' + summary.minVolume + '以下の銘柄、株価を取得できなかった銘柄<br>');
-  h.push('・出所：GOOGLEFINANCE（Google Finance）');
+  h.push('・出所：stooq（取得できない銘柄は Yahoo Finance で補完）');
   h.push('</p>');
 
   if (summary.isSeedUniverse) {
@@ -395,10 +517,10 @@ function escapeHtml_(s) {
 
 /** 初期リストで銘柄マスタを作成する。 */
 function initUniverseSheet() {
-  var rows = RE_SEED_CODES.map(function (code) { return [code, '', ''] ; });
+  var rows = RE_SEED_STOCKS.map(function (s) { return [s[0], s[1], '']; });
   writeUniverse_(rows, true);
-  refreshUniverseNames();
-  Logger.log('初期リスト ' + rows.length + '銘柄で「' + RE_SHEET_UNIVERSE + '」を作成しました。');
+  Logger.log('初期リスト ' + rows.length + '銘柄で「' + RE_SHEET_UNIVERSE + '」を作成しました。' +
+    ' 全銘柄を対象にするには importUniverseFromJpx を実行してください。');
 }
 
 /**
@@ -461,27 +583,25 @@ function convertToSheet_(blob) {
     { name: 'jpx_temp_' + Date.now(), mimeType: MimeType.GOOGLE_SHEETS }, blob).id;
 }
 
-/** 銘柄マスタの銘柄名を GOOGLEFINANCE で埋め直す（コードの誤りの確認に使う）。 */
-function refreshUniverseNames() {
+/**
+ * 銘柄マスタの各コードで株価が取れるかを確認する（コードの誤りの確認に使う）。
+ * 取得できなかったコードを実行ログに出します。
+ */
+function validateUniverse() {
   var universe = readUniverse_();
   if (!universe.rows.length) throw new Error('「' + RE_SHEET_UNIVERSE + '」シートに銘柄がありません。');
 
   var market = fetchMarketData_(universe.rows.map(function (r) { return r.code; }));
-  var sh = SpreadsheetApp.getActive().getSheetByName(RE_SHEET_UNIVERSE);
-  var unknown = [];
+  var unavailable = market.quotes
+    .filter(function (q) { return q.price === ''; })
+    .map(function (q) { return q.code; });
 
-  var names = market.quotes.map(function (q, i) {
-    var existing = universe.rows[i].name;
-    if (!q.name) unknown.push(q.code);
-    return [q.name || existing];
-  });
-  sh.getRange(2, 2, names.length, 1).setValues(names);
-
-  if (unknown.length) {
-    Logger.log('株価を取得できなかったコード（要確認）: ' + unknown.join(', '));
+  if (unavailable.length) {
+    Logger.log('株価を取得できなかったコード（要確認）: ' + unavailable.join(', '));
   } else {
-    Logger.log('全 ' + names.length + '銘柄の銘柄名を確認しました。');
+    Logger.log('全 ' + universe.rows.length + '銘柄で株価を取得できました。');
   }
+  return unavailable;
 }
 
 function writeUniverse_(rows, isSeed) {
