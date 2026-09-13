@@ -1,0 +1,144 @@
+{
+  "_comment": "第5期 営業目標進捗 の唯一のデータ入力元。毎週ここだけを更新する。単位はすべて『万円』。",
+  "asOf": "2026-09-13",
+  "asOfLabel": "2026年9月13日 時点",
+  "baseNote": "8月末 確定ベース（9月の確定分は9月末に反映）",
+  "fiscal": {
+    "term": 5,
+    "periodLabel": "2026年3月 〜 2027年2月",
+    "elapsedMonths": 6,
+    "totalMonths": 12,
+    "remainingMonths": 6
+  },
+  "targets": {
+    "grossMan": 30000,
+    "salesMan": 150000,
+    "contracts": 24,
+    "monthlyGrossMan": 2500,
+    "contractsNote": "久世・佐々木・廣石の合計。小林・森は件数目標なし"
+  },
+  "totals": {
+    "grossActualMan": 7218,
+    "grossForecastMan": 10518,
+    "salesActualMan": 33176,
+    "salesForecastMan": 47676,
+    "contractsActual": 21,
+    "contractsForecast": 22
+  },
+  "monthlyGross": [
+    {
+      "label": "3月",
+      "actual": 1204,
+      "forecast": 0
+    },
+    {
+      "label": "4月",
+      "actual": 405,
+      "forecast": 0
+    },
+    {
+      "label": "5月",
+      "actual": 2210,
+      "forecast": 0
+    },
+    {
+      "label": "6月",
+      "actual": 249,
+      "forecast": 0
+    },
+    {
+      "label": "7月",
+      "actual": 12,
+      "forecast": 0
+    },
+    {
+      "label": "8月",
+      "actual": 212,
+      "forecast": 0
+    },
+    {
+      "label": "9月",
+      "actual": 2819,
+      "forecast": 0
+    },
+    {
+      "label": "10月",
+      "actual": 72,
+      "forecast": 0
+    },
+    {
+      "label": "11月",
+      "actual": 0,
+      "forecast": 3335
+    },
+    {
+      "label": "12月",
+      "actual": 0,
+      "forecast": 0
+    },
+    {
+      "label": "1月",
+      "actual": 0,
+      "forecast": 0
+    },
+    {
+      "label": "2月",
+      "actual": 0,
+      "forecast": 0
+    }
+  ],
+  "members": [
+    {
+      "name": "小林 敏",
+      "role": "代表取締役",
+      "grossMan": 4606,
+      "grossTargetMan": 25400,
+      "forecastMan": 3300,
+      "contracts": 8,
+      "contractTarget": null
+    },
+    {
+      "name": "森 比査子",
+      "role": "取締役",
+      "grossMan": 1000,
+      "grossTargetMan": null,
+      "forecastMan": 0,
+      "contracts": 5,
+      "contractTarget": null
+    },
+    {
+      "name": "久世 宏美",
+      "role": "営業リーダー",
+      "grossMan": 54,
+      "grossTargetMan": 2000,
+      "forecastMan": 0,
+      "contracts": 2,
+      "contractTarget": 12
+    },
+    {
+      "name": "佐々木 卓也",
+      "role": "営業（週4日）",
+      "grossMan": 69,
+      "grossTargetMan": 600,
+      "forecastMan": 0,
+      "contracts": 1,
+      "contractTarget": 6
+    },
+    {
+      "name": "廣石 浩",
+      "role": "営業（土曜）",
+      "grossMan": 1488,
+      "grossTargetMan": 2000,
+      "forecastMan": 0,
+      "contracts": 5,
+      "contractTarget": 6
+    }
+  ],
+  "weeklyNotes": [
+    "今週は日報カウンターの成約登録・経営管理シートの更新がなく、数値は8月末 確定ベースのままです。"
+  ],
+  "notesKobayashiOnly": [
+    "月別の粗利合計 7,183万円 と ヘッドラインの実績 7,218万円 に 35万円の差異があります（経営管理シート側のご確認をお願いします）。",
+    "経営進捗管理表_v5（Drive・森さん管理）は基準日2026/07/16で止まっており、年間目標も旧値（売上10億円／粗利2.5億円）のままです。本資料は新目標（売上15億円／粗利3億円）で作成しています。"
+  ]
+}
