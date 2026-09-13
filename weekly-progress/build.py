@@ -505,6 +505,49 @@ def email_text(d, show_money):
     return "\n".join(L)
 
 
+def slack_text(d, show_money):
+    """Slack 投稿用（mrkdwn）。金額なし版は達成率と件数だけになる。"""
+    t, tot, f = d["targets"], d["totals"], d["fiscal"]
+    gap = t["grossMan"] - tot["grossForecastMan"]
+    need = gap / max(1, f["remainingMonths"])
+    L = [f'*第5期 営業目標 進捗*　{d["asOfLabel"]}（経過 {f["elapsedMonths"]}/{f["totalMonths"]} ヶ月）',
+         f'_基準：{d["baseNote"]}_', ""]
+    if show_money:
+        L += [f'• 年間粗利　目標 {man(t["grossMan"])} ／ 実績 *{man(tot["grossActualMan"])}*'
+              f'（達成 {pctv(tot["grossActualMan"], t["grossMan"])}）／ 予定実績 {man(tot["grossForecastMan"])}',
+              f'• 年間売上　目標 {man(t["salesMan"])} ／ 実績 *{man(tot["salesActualMan"])}*'
+              f'（達成 {pctv(tot["salesActualMan"], t["salesMan"])}）／ 予定実績 {man(tot["salesForecastMan"])}',
+              f'• 契約件数　目標 {t["contracts"]}件 ／ 実績 *{tot["contractsActual"]}件*'
+              f'（達成 {pctv(tot["contractsActual"], t["contracts"])}）／ 予定実績 {tot["contractsForecast"]}件',
+              "",
+              f'*目標まで（予定実績との差）{man(gap)}*　残り {f["remainingMonths"]}ヶ月 → 必要なペース 月 {man(need)}']
+    else:
+        L += [f'• 年間粗利　達成率 *{pctv(tot["grossActualMan"], t["grossMan"])}*'
+              f'（予定実績ベース {pctv(tot["grossForecastMan"], t["grossMan"])}）',
+              f'• 年間売上　達成率 *{pctv(tot["salesActualMan"], t["salesMan"])}*'
+              f'（予定実績ベース {pctv(tot["salesForecastMan"], t["salesMan"])}）',
+              f'• 契約件数　目標 {t["contracts"]}件 ／ 実績 *{tot["contractsActual"]}件*'
+              f'（達成 {pctv(tot["contractsActual"], t["contracts"])}）／ 予定実績 {tot["contractsForecast"]}件',
+              "",
+              f'年間目標まで あと *{pctv(gap, t["grossMan"])}*　残り {f["remainingMonths"]}ヶ月']
+    L += ["", "*担当者別*"]
+    for m in d["members"]:
+        g, ct = m["grossTargetMan"], m["contractTarget"]
+        cts = f'契約 {m["contracts"]}/{ct}件' if ct else f'契約 {m["contracts"]}件'
+        if show_money:
+            gp = (f'粗利 {man(m["grossMan"])}（目標 {man(g)}・達成 {pctv(m["grossMan"], g)}）'
+                  if g else f'粗利 {man(m["grossMan"])}（目標なし）')
+        else:
+            gp = f'粗利 達成 {pctv(m["grossMan"], g)}' if g else "粗利 目標なし（記録のみ）"
+        L.append(f'• {m["name"]}（{m["role"]}）　{gp}　{cts}')
+    notes = notes_for(d, show_money)
+    if notes:
+        L += ["", "*今週の申し送り*"] + [f'• {n}' for n in notes]
+    L += ["", ("_社外秘（社内限り）／ 数字は第5期 経営進捗管理表より_" if show_money
+               else "_社内限／金額は非表示（達成率・件数のみ）。金額を含む資料は小林の確認用です_")]
+    return "\n".join(L)
+
+
 def to_pdf(html_path, pdf_path):
     from playwright.sync_api import sync_playwright
     with sync_playwright() as pw:
@@ -536,15 +579,16 @@ def main():
     OUT.mkdir(exist_ok=True)
     tag = f'{d["asOf"]}_{a.audience}'
 
-    dash_html, mail_h, mail_t = (dashboard(d, show_money), email_html(d, show_money),
-                                 email_text(d, show_money))
+    dash_html, mail_h, mail_t, slack = (dashboard(d, show_money), email_html(d, show_money),
+                                        email_text(d, show_money), slack_text(d, show_money))
     if not show_money:
-        assert_no_money(dash_html, mail_h, mail_t)
+        assert_no_money(dash_html, mail_h, mail_t, slack)
     html = OUT / f"dashboard_{tag}.html"
     html.write_text(dash_html, encoding="utf-8")
     (OUT / f"mail_{tag}.html").write_text(mail_h, encoding="utf-8")
     (OUT / f"mail_{tag}.txt").write_text(mail_t, encoding="utf-8")
-    made = [html.name, f"mail_{tag}.html", f"mail_{tag}.txt"]
+    (OUT / f"slack_{tag}.txt").write_text(slack, encoding="utf-8")
+    made = [html.name, f"mail_{tag}.html", f"mail_{tag}.txt", f"slack_{tag}.txt"]
     if not a.no_pdf:
         pdf = OUT / f"第5期_営業目標進捗_{d['asOf']}{'' if show_money else '_社内共有版'}.pdf"
         to_pdf(html, pdf)
