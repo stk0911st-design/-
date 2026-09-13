@@ -464,7 +464,8 @@ def email_html(d, show_money):
 <div style="font-size:15px;font-weight:700;color:{C['greenDark']};margin:18px 0 4px">今週の申し送り</div>
 <ul style="margin:0 0 16px;padding-left:1.3em">{notes}</ul>
 <p style="margin:0 0 4px;font-size:12px;color:{C['sub']}">
-  添付の PDF（A3横）が正式版です。数値は毎週、日報カウンターの成約登録と経営管理シートから更新しています。</p>
+  A3横1枚の PDF（正式版）も同じ数字で作成済みです。必要なときはお知らせください。<br>
+  数値は毎週、日報カウンターの成約登録と経営管理シート（小林管理）から更新しています。</p>
 <p style="margin:14px 0 0;font-size:11px;color:{C['sub']};border-top:1px solid {C['line']};padding-top:8px">
   株式会社スマートハウス　{esc(secret)}　／　本メールの数字は第5期 経営進捗管理表より</p>
 </div>"""
@@ -498,7 +499,8 @@ def email_text(d, show_money):
             gp = f'達成 {pctv(m["grossMan"], g)}' if g else "目標なし"
         L.append(f'・{m["name"]}（{m["role"]}）　粗利 {gp}　契約 {ct}')
     L += ["", "■ 今週の申し送り"] + [f'・{n}' for n in notes_for(d, show_money)]
-    L += ["", "添付の PDF（A3横）が正式版です。",
+    L += ["", "A3横1枚の PDF（正式版）も同じ数字で作成済みです。必要なときはお知らせください。",
+          "数値は毎週、日報カウンターの成約登録と経営管理シート（小林管理）から更新しています。",
           f'株式会社スマートハウス　{"社外秘（社内限り）" if show_money else "社内限（金額は非表示）"}']
     return "\n".join(L)
 
