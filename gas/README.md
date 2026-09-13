@@ -1,4 +1,12 @@
-# DailyReportMailer（Apps Script 版）
+# Apps Script
+
+- `DailyReportMailer.gs` … 営業日報のまとめメール（下記）
+- `Receiver.gs` … 日報アプリからの受け取り口
+- `BacklogIssueImporter.gs` … 物件情報メールを Backlog 課題にする（[docs/backlog-auto-import.md](../docs/backlog-auto-import.md)）
+
+---
+
+## DailyReportMailer（Apps Script 版）
 
 日報カウンターのスプレッドシートから、前営業日に入力された内容を集計して
 指定アドレスへメール送信する Apps Script です。
