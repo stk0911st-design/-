@@ -11,7 +11,7 @@
  * 想定トリガー: 時間主導型 / 日付ベース / 午前7時〜8時
  *
  * スクリプトプロパティ:
- *   MODE                  'api' または 'csv'（未設定なら 'csv'）
+ *   MODE                  'api' または 'csv'（未設定なら 'api'）
  *   BACKLOG_SPACE         例: smarthouse.backlog.com
  *   BACKLOG_API_KEY       Backlog の個人設定 → API で発行したキー（MODE=api のとき必須）
  *   BACKLOG_PROJECT_KEY   例: FDA
@@ -85,11 +85,19 @@ var EXCLUDE_SUBJECT_WORDS = [
 /** 中継サービス等、差出人ドメインでは業者がわからない送信元。 */
 var RELAY_DOMAINS = ['facilo.jp', 'awstrack.me', 'sendgrid.net', 'cloud.nomad-a.jp'];
 
+/**
+ * メールの中身からカテゴリーを決める。上から順に見て最初に当たったものを使う。
+ * 当たらなければ DEFAULT_CATEGORY（未設定ならカテゴリーなし）。
+ */
+var CATEGORY_RULES = [
+  { pattern: /査定|目線|買取価格|価格をお伺い|買取のご相談|買取のご依頼/, name: '査定' }
+];
+
 /* ============================ エントリポイント ============================ */
 
 /** 定期トリガーから呼ぶ本番用。MODE に従って動く。 */
 function importPropertyEmails() {
-  var mode = prop_('MODE') || 'csv';
+  var mode = prop_('MODE') || 'api';
   if (mode === 'api') {
     runApiMode_(false);
   } else {
@@ -110,9 +118,64 @@ function previewPropertyEmails() {
   }
 }
 
+/**
+ * 登録はせず、Backlogに何を作るつもりかを実行ログに出す（API設定の確認込み）。
+ * 本番トリガーを付ける前に、これを1回実行して内容を確かめる。
+ */
+function dryRunApiImport() {
+  runApiMode_(true);
+}
+
 /** CSVだけ作ってメールする（担当者が Backlog の「一括登録」でアップロード）。 */
 function sendImportCsv() {
   runCsvMode_(false);
+}
+
+/**
+ * Backlogにつながるか、設定値が正しいかだけを確かめる。
+ * APIキーを入れた直後に実行し、実行ログに出る内容を確認する。
+ */
+function testBacklogConnection() {
+  var space = prop_('BACKLOG_SPACE');
+  var apiKey = prop_('BACKLOG_API_KEY');
+  var projectKey = prop_('BACKLOG_PROJECT_KEY');
+  var missing = [];
+  if (!space) { missing.push('BACKLOG_SPACE'); }
+  if (!apiKey) { missing.push('BACKLOG_API_KEY'); }
+  if (!projectKey) { missing.push('BACKLOG_PROJECT_KEY'); }
+  if (missing.length > 0) {
+    Logger.log('NG: スクリプトプロパティが未設定です → ' + missing.join(' / '));
+    return;
+  }
+
+  var ctx;
+  try {
+    ctx = buildApiContext_();
+  } catch (e) {
+    Logger.log('NG: ' + e);
+    Logger.log('※ 401なら APIキー、404なら スペース名かプロジェクトキーを見直してください。');
+    return;
+  }
+
+  Logger.log('OK: Backlogに接続できました。');
+  Logger.log('  スペース     : ' + space);
+  Logger.log('  プロジェクト : ' + projectKey + '（ID ' + ctx.projectId + '）');
+  Logger.log('  種別         : ' + (prop_('DEFAULT_ISSUE_TYPE') || 'タスク') + '（ID ' + ctx.issueTypeId + '）');
+  Logger.log('  優先度       : ' + (prop_('DEFAULT_PRIORITY') || '中') + '（ID ' + ctx.priorityId + '）');
+  Logger.log('  担当者       : ' + (prop_('DEFAULT_ASSIGNEE') || '（未設定）') +
+    (ctx.assigneeId ? '（ID ' + ctx.assigneeId + '）' : ''));
+
+  var names = [];
+  for (var i = 0; i < ctx.categories.length; i++) {
+    names.push(ctx.categories[i].name);
+  }
+  Logger.log('  カテゴリー   : ' + names.join(' / '));
+  for (var j = 0; j < CATEGORY_RULES.length; j++) {
+    if (names.indexOf(CATEGORY_RULES[j].name) < 0) {
+      Logger.log('  ※ 自動判定で使う「' + CATEGORY_RULES[j].name + '」がBacklogにありません。カテゴリーなしで登録されます。');
+    }
+  }
+  Logger.log('次に dryRunApiImport を実行して、登録される中身を確認してください。');
 }
 
 /* ============================== 処理本体 ============================== */
@@ -130,6 +193,11 @@ function runApiMode_(isDryRun) {
     var it = items[i];
     if (isDryRun) {
       created.push({ key: '(dry-run)', item: it });
+      Logger.log('---- dry-run ' + (i + 1) + ' ----');
+      Logger.log('件名      : ' + it.summary);
+      Logger.log('カテゴリー: ' + (it.category || '（なし）'));
+      Logger.log('要確認    : ' + (it.needsReview ? it.reviewReason : 'なし'));
+      Logger.log('詳細      :\n' + it.description);
       continue;
     }
     try {
@@ -142,7 +210,9 @@ function runApiMode_(isDryRun) {
     }
   }
   Logger.log('登録 ' + created.length + '件 / 失敗 ' + failed.length + '件');
-  notifyResult_(created, failed);
+  if (!isDryRun) {
+    notifyResult_(created, failed);
+  }
 }
 
 function runCsvMode_(isDryRun) {
@@ -267,6 +337,7 @@ function buildItem_(msg, thread) {
     messageId: msg.getId(),
     thread: thread,
     date: msg.getDate(),
+    category: detectCategory_(subject, body),
     summary: mask_(summary),
     description: buildDescription_(msg, vendor, branch, person, property, body),
     needsReview: needsReview,
@@ -382,6 +453,16 @@ function cleanPerson_(text) {
     .trim();
 }
 
+function detectCategory_(subject, body) {
+  var text = String(subject) + '\n' + String(body);
+  for (var i = 0; i < CATEGORY_RULES.length; i++) {
+    if (CATEGORY_RULES[i].pattern.test(text)) {
+      return CATEGORY_RULES[i].name;
+    }
+  }
+  return prop_('DEFAULT_CATEGORY') || '';
+}
+
 function detectBranch_(body, vendor) {
   var m = body.match(/([^\n\r　 ]{2,16}(?:センター|支店|営業部|営業所|開発部))/);
   if (!m) {
@@ -442,11 +523,7 @@ function buildApiContext_() {
   var priorities = apiGet_(ctx, '/priorities');
   ctx.priorityId = findIdByName_(priorities, prop_('DEFAULT_PRIORITY') || '中');
 
-  var categoryName = prop_('DEFAULT_CATEGORY');
-  if (categoryName) {
-    var categories = apiGet_(ctx, '/projects/' + projectKey + '/categories');
-    ctx.categoryId = findIdByName_(categories, categoryName);
-  }
+  ctx.categories = apiGet_(ctx, '/projects/' + projectKey + '/categories');
 
   var assigneeName = prop_('DEFAULT_ASSIGNEE');
   if (assigneeName) {
@@ -465,8 +542,9 @@ function createIssue_(ctx, item) {
     description: item.description,
     startDate: Utilities.formatDate(item.date, TZ_IMPORT, 'yyyy-MM-dd')
   };
-  if (ctx.categoryId) {
-    payload['categoryId[]'] = ctx.categoryId;
+  var categoryId = lookupCategoryId_(ctx, item.category);
+  if (categoryId) {
+    payload['categoryId[]'] = categoryId;
   }
   if (ctx.assigneeId) {
     payload.assigneeId = ctx.assigneeId;
@@ -480,6 +558,20 @@ function createIssue_(ctx, item) {
     throw new Error('課題作成に失敗 (' + res.getResponseCode() + '): ' + res.getContentText());
   }
   return JSON.parse(res.getContentText());
+}
+
+/** カテゴリー名からIDを引く。名前が無ければカテゴリーなしで登録する。 */
+function lookupCategoryId_(ctx, name) {
+  if (!name || !ctx.categories) {
+    return null;
+  }
+  for (var i = 0; i < ctx.categories.length; i++) {
+    if (ctx.categories[i].name === name) {
+      return ctx.categories[i].id;
+    }
+  }
+  Logger.log('カテゴリー「' + name + '」がBacklogに無いため、カテゴリーなしで登録します。');
+  return null;
 }
 
 function apiGet_(ctx, path) {
@@ -518,7 +610,6 @@ function buildCsv_(items) {
   var rows = [CSV_HEADERS];
   var issueType = prop_('DEFAULT_ISSUE_TYPE') || 'タスク';
   var priority = prop_('DEFAULT_PRIORITY') || '中';
-  var category = prop_('DEFAULT_CATEGORY') || '';
   var assignee = prop_('DEFAULT_ASSIGNEE') || '';
   for (var i = 0; i < items.length; i++) {
     var it = items[i];
@@ -526,7 +617,7 @@ function buildCsv_(items) {
       it.summary,
       it.description,
       issueType,
-      category,
+      it.category || '',
       priority,
       assignee,
       Utilities.formatDate(it.date, TZ_IMPORT, 'yyyy/MM/dd'),
