@@ -5,7 +5,7 @@
 | 自動化 | 内容 | 詳細 |
 | --- | --- | --- |
 | 営業日報 まとめメール | 日報アプリの入力を翌営業日の朝にまとめて送信 | 下記 |
-| 南万騎が原 マンション台帳 | 南万騎が原駅の中古マンション売り出し／成約事例を週次で記録・蓄積 | [`docs/mansion-tracking.md`](docs/mansion-tracking.md) |
+| 南万騎が原 マンション台帳 | 南万騎が原駅の中古マンション売り出し／成約事例を記録・蓄積（日次チェック） | [`docs/mansion-tracking.md`](docs/mansion-tracking.md) |
 
 ---
 
@@ -91,11 +91,11 @@ Claude に依存せず動き続けるため、恒久運用にはこちらが確�
 # 南万騎が原 マンション台帳
 
 相鉄いずみ野線 南万騎が原駅（横浜市旭区）を最寄りとする中古マンションについて、
-週1回のスナップショットから **新規掲載 / 価格改定 / 掲載終了** を判定して蓄積します。
+スナップショットの差分から **新規掲載 / 価格改定 / 掲載終了** を判定して蓄積します。
 掲載が終わった物件も削除せず、`status=掲載終了` として台帳に残ります。
 
 ```bash
-python3 scripts/mansion_track.py ingest <週次スナップショット.csv> --date YYYY-MM-DD
+python3 scripts/mansion_track.py ingest <スナップショット.csv> --date YYYY-MM-DD
 python3 scripts/mansion_track.py report
 python3 scripts/mansion_track.py view     # reports/index.html
 python3 scripts/mansion_track.py stats
