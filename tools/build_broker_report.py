@@ -80,24 +80,24 @@ def build(d):
     def table(block, title):
         h(f'<h3 style="font-size:15px;margin:22px 0 8px;border-bottom:2px solid #2b6cb0;padding-bottom:4px">{title}</h3>')
         h(f'<div style="color:#666;font-size:12px;margin-bottom:6px">{block["label"]}</div>')
-        h('<table cellpadding="7" cellspacing="0" style="border-collapse:collapse;width:100%;font-size:13px">')
+        h('<table border="1" bordercolor="#cbd5e0" cellpadding="7" cellspacing="0" style="border-collapse:collapse;width:100%;font-size:13px">')
         h('<tr style="background:#eef2f7">'
-          '<th align="left" style="border:1px solid #cbd5e0">会社</th>'
-          '<th align="right" style="border:1px solid #cbd5e0">取扱件数</th>'
-          '<th align="right" style="border:1px solid #cbd5e0">取扱高</th>'
-          '<th align="right" style="border:1px solid #cbd5e0">手数料収入</th>'
-          '<th align="right" style="border:1px solid #cbd5e0">店舗数</th></tr>')
+          '<th align="left">会社</th>'
+          '<th align="right">取扱件数</th>'
+          '<th align="right">取扱高</th>'
+          '<th align="right">手数料収入</th>'
+          '<th align="right">店舗数</th></tr>')
         t(f"【{title}】{block['label']}")
         for r in block["rows"]:
             m = CONF_MARK.get(r.get("conf", ""), "")
             fee = r["fee"] if isinstance(r["fee"], str) else oku(r["fee"])
             yoy = f'<br><span style="color:#888;font-size:11px">{r["cases_yoy"]}</span>' if r.get("cases_yoy") else ""
             h('<tr>'
-              f'<td style="border:1px solid #cbd5e0">{names[r["id"]]}{m}</td>'
-              f'<td align="right" style="border:1px solid #cbd5e0">{cases(r["cases"])}{yoy}</td>'
-              f'<td align="right" style="border:1px solid #cbd5e0">{oku(r["volume"])}</td>'
-              f'<td align="right" style="border:1px solid #cbd5e0">{fee}</td>'
-              f'<td align="right" style="border:1px solid #cbd5e0">{stores(r["stores"])}</td></tr>')
+              f'<td>{names[r["id"]]}{m}</td>'
+              f'<td align="right">{cases(r["cases"])}{yoy}</td>'
+              f'<td align="right">{oku(r["volume"])}</td>'
+              f'<td align="right">{fee}</td>'
+              f'<td align="right">{stores(r["stores"])}</td></tr>')
             t(f"  {shorts[r['id']]}{m}: {cases(r['cases'])} / 取扱高 {oku(r['volume'])} / 手数料 {fee} / {stores(r['stores'])}")
         h("</table>")
         h('<ul style="font-size:12px;color:#555;margin:8px 0 0;padding-left:18px">')
@@ -114,14 +114,14 @@ def build(d):
     # --- 5年推移 ------------------------------------------------------
     tr = d["trend_cases"]
     h('<h3 style="font-size:15px;margin:22px 0 8px;border-bottom:2px solid #2b6cb0;padding-bottom:4px">③ 5年推移（取扱件数）</h3>')
-    h('<table cellpadding="7" cellspacing="0" style="border-collapse:collapse;width:100%;font-size:13px">')
-    h('<tr style="background:#eef2f7"><th align="left" style="border:1px solid #cbd5e0">会社</th>'
-      + "".join(f'<th align="right" style="border:1px solid #cbd5e0">{y}</th>' for y in tr["years"]) + "</tr>")
+    h('<table border="1" bordercolor="#cbd5e0" cellpadding="7" cellspacing="0" style="border-collapse:collapse;width:100%;font-size:13px">')
+    h('<tr style="background:#eef2f7"><th align="left">会社</th>'
+      + "".join(f'<th align="right">{y}</th>' for y in tr["years"]) + "</tr>")
     t("【③ 5年推移（取扱件数）】")
     t("  会社 / " + " / ".join(tr["years"]))
     for s in tr["series"]:
-        h(f'<tr><td style="border:1px solid #cbd5e0">{shorts[s["id"]]}</td>'
-          + "".join(f'<td align="right" style="border:1px solid #cbd5e0">{cases(v)}</td>' for v in s["values"])
+        h(f'<tr><td>{shorts[s["id"]]}</td>'
+          + "".join(f'<td align="right">{cases(v)}</td>' for v in s["values"])
           + "</tr>")
         t(f"  {shorts[s['id']]}: " + " / ".join(cases(v) for v in s["values"]))
     h("</table>")
@@ -151,15 +151,15 @@ def build(d):
     # --- 市況 ---------------------------------------------------------
     mk = d["market"]
     h(f'<h3 style="font-size:15px;margin:22px 0 8px;border-bottom:2px solid #2b6cb0;padding-bottom:4px">⑥ {mk["label"]}</h3>')
-    h('<table cellpadding="7" cellspacing="0" style="border-collapse:collapse;width:100%;font-size:13px">')
-    h('<tr style="background:#eef2f7"><th align="left" style="border:1px solid #cbd5e0">時点</th>'
-      '<th align="left" style="border:1px solid #cbd5e0">成約件数</th>'
-      '<th align="left" style="border:1px solid #cbd5e0">成約平均価格</th></tr>')
+    h('<table border="1" bordercolor="#cbd5e0" cellpadding="7" cellspacing="0" style="border-collapse:collapse;width:100%;font-size:13px">')
+    h('<tr style="background:#eef2f7"><th align="left">時点</th>'
+      '<th align="left">成約件数</th>'
+      '<th align="left">成約平均価格</th></tr>')
     t(f"【⑥ {mk['label']}】")
     for r in mk["rows"]:
-        h(f'<tr><td style="border:1px solid #cbd5e0">{r["month"]}</td>'
-          f'<td style="border:1px solid #cbd5e0">{r["cases"]}</td>'
-          f'<td style="border:1px solid #cbd5e0">{r["price"]}</td></tr>')
+        h(f'<tr><td>{r["month"]}</td>'
+          f'<td>{r["cases"]}</td>'
+          f'<td>{r["price"]}</td></tr>')
         t(f"  {r['month']}：成約 {r['cases']}／価格 {r['price']}")
     h("</table>")
     h(f'<p style="margin:8px 0 0">{mk["comment"]}</p>')
