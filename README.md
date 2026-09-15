@@ -1,3 +1,17 @@
+# 社内業務の自動化
+
+社内で繰り返し発生する連絡・集計を、Google Apps Script で自動化したものです。
+
+| 自動化 | 内容 | スクリプト | 手順 |
+| --- | --- | --- | --- |
+| 営業日報 まとめメール | 日報アプリの入力を翌営業日の朝にまとめて送信 | `gas/DailyReportMailer.gs` | 下記 |
+| 社内通達 自動配信 | 管理シートに1行書くと、配信日時にメール・Slack・カレンダー・Drive保管まで実行 | `gas/NoticeDistributor.gs` | [docs/notice-distribution.md](docs/notice-distribution.md) |
+
+※ アドレス・フォルダID・Webhook URL などの社内情報はリポジトリに置かず、
+実行環境側（Apps Script のスクリプトプロパティ、または Claude のルーティン設定）で管理します。
+
+---
+
 # 営業日報 まとめメール自動化
 
 営業日報アプリ（Google Apps Script + スプレッドシート「日報カウンター」）に入力された内容を、
