@@ -1,0 +1,103 @@
+{
+  "meta": {
+    "updated": "2026-09-15",
+    "note": "大手仲介7社の売買仲介実績。年度表記は日本の会計年度（FY2025 = 2025年4月〜2026年3月 = 2026年3月期）。金額はすべて各社・業界団体が公表している公開情報のみ。",
+    "confidence_legend": {
+      "high": "一次情報（各社IR・プレスリリース）または業界紙の集計値で裏取り済み",
+      "mid": "業界紙・集計サイト経由。年度ラベルの取り違えリスクあり",
+      "low": "未確認。次回までに要補完"
+    }
+  },
+  "companies": [
+    {"id": "mitsui",   "name": "三井不動産リアルティG（三井のリハウス）", "short": "三井のリハウス"},
+    {"id": "livable",  "name": "東急リバブル",                            "short": "東急リバブル"},
+    {"id": "sumitomo", "name": "住友不動産ステップ（旧・住友不動産販売）", "short": "住友ステップ"},
+    {"id": "nomura",   "name": "野村不動産ソリューションズ（野村の仲介＋）", "short": "野村の仲介＋"},
+    {"id": "mufg",     "name": "三菱UFJ不動産販売",                       "short": "三菱UFJ"},
+    {"id": "daikyo",   "name": "大京穴吹不動産",                          "short": "大京穴吹"},
+    {"id": "taisei",   "name": "大成有楽不動産販売",                      "short": "大成有楽"}
+  ],
+  "fy2025": {
+    "label": "2025年度（2025年4月〜2026年3月／2026年3月期）",
+    "rows": [
+      {"id":"mitsui",  "cases":36220, "cases_yoy":"▲4.9%", "volume":null,      "fee":"過去最高（金額未公表）", "stores":269, "conf":"high",
+       "note":"全国売買仲介取扱件数 40年連続No.1（2026/6/9発表）。店舗数は2026年3月31日時点"},
+      {"id":"livable", "cases":33922, "cases_yoy":"+3.0%",  "volume":2563500,   "fee":109300, "stores":null, "conf":"mid",
+       "note":"取扱高3年連続No.1。手数料収入は初の1,000億円超・通期で初の業界首位（+12%）"},
+      {"id":"sumitomo","cases":28848, "cases_yoy":"▲2,155件", "volume":1488451, "fee":75360, "stores":null, "conf":"high",
+       "note":"取扱単価5,160万円（+11.4%）。ステップ事業売上高753.6億円(+2.9%)・営業利益236.0億円(+21.0%、過去最高)。店舗は1年で36店減"},
+      {"id":"nomura",  "cases":null,  "cases_yoy":"増加",   "volume":null,      "fee":64300, "stores":94,   "conf":"mid",
+       "note":"仲介・CREセグメント売上高643億円(+71億円)・営業利益189億円(+24億円)。件数/取扱高の単体開示は要補完"},
+      {"id":"mufg",    "cases":null,  "cases_yoy":null,     "volume":null,      "fee":null,   "stores":37,   "conf":"low", "note":"FY2025の単体実績は未取得。要補完"},
+      {"id":"daikyo",  "cases":null,  "cases_yoy":null,     "volume":null,      "fee":null,   "stores":61,   "conf":"low", "note":"FY2025の単体実績は未取得。要補完"},
+      {"id":"taisei",  "cases":null,  "cases_yoy":null,     "volume":null,      "fee":null,   "stores":24,   "conf":"low", "note":"FY2025の単体実績は未取得。要補完"}
+    ]
+  },
+  "fy2024": {
+    "label": "2024年度（2024年4月〜2025年3月／2025年3月期）",
+    "rows": [
+      {"id":"mitsui",  "cases":38103, "volume":2218842, "fee":101353, "stores":277, "conf":"high", "note":"39年連続No.1。取扱高+14.7%、手数料収入+10.6%で初の1,000億円超"},
+      {"id":"livable", "cases":32918, "volume":2231195, "fee":97637,  "stores":null,"conf":"high", "note":"件数+8.8%、取扱高+7.3%、手数料+10.2%。取扱高で三井を僅差で上回り首位"},
+      {"id":"sumitomo","cases":31003, "volume":1435400, "fee":null,   "stores":null,"conf":"mid",  "note":"件数はFY2025の前年差(▲2,155件)からの逆算。取扱高は別集計で1兆4,344億円"},
+      {"id":"nomura",  "cases":null,  "volume":1391100, "fee":57100,  "stores":94,  "conf":"mid",  "note":"仲介・CRE売上高571億円"},
+      {"id":"mufg",    "cases":4070,  "volume":602200,  "fee":25800,  "stores":37,  "conf":"mid",  "note":"高単価型。売上高258億円"},
+      {"id":"daikyo",  "cases":4525,  "volume":181800,  "fee":8000,   "stores":61,  "conf":"mid",  "note":"不動産業統計集2025（推進センター）"},
+      {"id":"taisei",  "cases":2597,  "volume":139800,  "fee":5900,   "stores":24,  "conf":"mid",  "note":"不動産業統計集2025（推進センター）"}
+    ]
+  },
+  "trend_cases": {
+    "label": "取扱件数の5年推移（単位：件）",
+    "years": ["FY2021", "FY2022", "FY2023", "FY2024", "FY2025"],
+    "series": [
+      {"id":"mitsui",  "values":[41183, 39106, 38680, 38103, 36220]},
+      {"id":"livable", "values":[null,  29577, null,  32918, 33922]},
+      {"id":"sumitomo","values":[null,  34906, null,  31003, 28848]},
+      {"id":"mufg",    "values":[null,  null,  null,  4070,  null]},
+      {"id":"daikyo",  "values":[null,  null,  null,  4525,  null]},
+      {"id":"taisei",  "values":[null,  null,  null,  2597,  null]}
+    ],
+    "note": "三井はFY2020が38,507件。東急・住友の空欄は次回までに補完"
+  },
+  "headcount": [
+    {"id":"mitsui",  "value":"単体 4,605名／連結 5,376名（2026年3月31日現在）", "conf":"high"},
+    {"id":"livable", "value":"単体 4,052名／連結 4,177名（2026年3月末）",       "conf":"high"},
+    {"id":"sumitomo","value":"要補完", "conf":"low"},
+    {"id":"nomura",  "value":"要補完", "conf":"low"},
+    {"id":"mufg",    "value":"要補完", "conf":"low"},
+    {"id":"daikyo",  "value":"要補完", "conf":"low"},
+    {"id":"taisei",  "value":"要補完", "conf":"low"}
+  ],
+  "topics": [
+    {"id":"livable",  "text":"積極出店で取扱件数を伸ばし、単価上昇も重なって手数料収入が約12%増。同社初の1,000億円超えで、通期実績として初めて業界トップに立った。取扱高は3年連続No.1。"},
+    {"id":"mitsui",   "text":"店舗の統廃合（277→269店）で生産性を高め、高単価エリアに人員を集中。取扱件数は減ったが全エリアで平均単価が上がり、手数料収入は過去最高を更新。件数No.1は40年連続。"},
+    {"id":"sumitomo", "text":"2025年4月1日付で「住友不動産販売」から「住友不動産ステップ」へ商号変更。店舗は1年で36店減、件数も減少したが、取扱単価5,160万円（+11.4%）で増収・営業利益は過去最高。2026年4月1日時点で買取専門部署「ステップ買取エージェント」を首都圏5拠点・関西1拠点に設置。"},
+    {"id":"nomura",   "text":"仲介・CREセグメントは増収増益。店舗数は大手3社の約1/3ながら高単価案件に集中する戦略。野村不動産HD全体では2026年3月期に売上高・各利益とも過去最高。"},
+    {"id":"mufg",     "text":"37店舗の少数精鋭・高単価型。三菱UFJ信託銀行の顧客基盤を活かし、資産家・法人の高額物件や相続案件に強み。1件あたり単価は業界トップクラス。"},
+    {"id":"daikyo",   "text":"オリックスグループ。61店舗で区分マンションの仲介・買取再販が中心。"},
+    {"id":"taisei",   "text":"大成建設グループ。24店舗でマンション中心。管理物件からの流通に強み。"}
+  ],
+  "industry": [
+    "業界紙の2025年度集計では、回答21社のうち手数料収入が増えたのは17社、うち7社が2桁増。市場全体として活発だった。",
+    "各社とも「件数より単価」で稼ぐ構図が鮮明。件数を減らしても増収というパターンが上位3社すべてで起きている。"
+  ],
+  "market": {
+    "label": "首都圏中古マンション市況（東日本レインズ 月例）",
+    "rows": [
+      {"month":"2026年2月", "cases":"4,241件（前年同月比 +2.1%）", "price":"5,458万円（+9.5%）"},
+      {"month":"2026年5月", "cases":"3,709件（▲3.4%／2か月連続減）", "price":"5,067万円（▲4.6%／19か月ぶり下落）"},
+      {"month":"2026年6月", "cases":"（▲1.3%／3か月連続減）", "price":"5,208万円（ほぼ横ばい／2か月連続下落）"}
+    ],
+    "comment": "5月は成約坪単価267万円と73か月（約6年）ぶりに下落。上期前半の強含みから、春以降は件数・価格とも調整局面入りの兆し。高値圏での踊り場と見るべき局面。"
+  },
+  "sources": [
+    {"t":"三井不動産リアルティ ニュースリリース（2026/6/9）全国売買仲介取扱件数 40年連続No.1", "u":"https://www.mf-realty.jp/news/2026/20260609_01.html"},
+    {"t":"R.E.port「25年度仲介実績、東急リバブルが初の年間トップ」", "u":"https://www.re-port.net/article/news/0000081884/"},
+    {"t":"R.E.port「5期連続で経常最高益／住友不26年3月期」", "u":"https://www.re-port.net/article/news/0000081802/"},
+    {"t":"R.E.port「過去最高業績を更新／野村不HD26年3月期」", "u":"https://www.re-port.net/article/news/0000081695/"},
+    {"t":"東京都宅建協会「三井不リアル、仲介事業で初の売上1,000億円超」", "u":"https://www.tokyo-takken.or.jp/re-port/78826"},
+    {"t":"不動産流通推進センター 不動産業統計集［不動産流通］", "u":"https://www.retpc.jp/wp-content/uploads/toukei/202503/202503_3ryutsu.pdf"},
+    {"t":"東日本レインズ 月例速報 Market Watch", "u":"https://www.reins.or.jp/pdf/trend/mw/mw_202606_summary.pdf"},
+    {"t":"東急リバブル 実績推移", "u":"https://www.livable.co.jp/corp/performance/"},
+    {"t":"住友不動産ステップ 会社情報", "u":"https://www.stepon.co.jp/comprof/"}
+  ]
+}
