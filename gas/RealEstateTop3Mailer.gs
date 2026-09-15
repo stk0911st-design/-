@@ -24,6 +24,8 @@ var RE_PROP_RECIPIENT = 'RE_TOP3_RECIPIENT';   // 宛先。カンマ区切りで
 var RE_PROP_CC = 'RE_TOP3_CC';                 // CC。省略可
 var RE_PROP_MIN_VOLUME = 'RE_TOP3_MIN_VOLUME'; // 出来高の下限。省略時は0（＝出来高0の銘柄だけ除外）
 var RE_PROP_LAST_SENT = 'RE_TOP3_LAST_SENT_DATE'; // 最後に送信した取引日。二重送信の防止に使う
+var RE_PROP_SPREADSHEET_ID = 'RE_TOP3_SPREADSHEET_ID'; // 銘柄マスタを置くスプレッドシートのID。
+                                                       // スプレッドシートに紐付けたスクリプトなら不要
 
 // ---- 定数 --------------------------------------------------------------
 var RE_SHEET_UNIVERSE = '銘柄マスタ';
@@ -112,9 +114,11 @@ function buildRealEstateTop3_(opts) {
   opts = opts || {};
   var universe = readUniverse_();
   if (!universe.rows.length) {
-    throw new Error(
-      '「' + RE_SHEET_UNIVERSE + '」シートに銘柄がありません。' +
-      'initUniverseSheet() または importUniverseFromJpx() を先に実行してください。');
+    // 初回実行時は銘柄マスタがまだ無いので、初期リストで作ってそのまま続行する。
+    Logger.log('「' + RE_SHEET_UNIVERSE + '」シートが無いため、初期リストで作成します。' +
+      '全銘柄を対象にするには importUniverseFromJpx を実行してください。');
+    initUniverseSheet();
+    universe = readUniverse_();
   }
 
   var market = fetchMarketData_(universe.rows.map(function (r) { return r.code; }));
@@ -185,9 +189,26 @@ function buildRealEstateTop3_(opts) {
   };
 }
 
+/**
+ * 銘柄マスタを置くスプレッドシートを返す。
+ * スプレッドシートに紐付けたスクリプトならそのファイル、
+ * 単独のスクリプトならスクリプトプロパティ RE_TOP3_SPREADSHEET_ID のファイルを使う。
+ */
+function getSpreadsheet_() {
+  var id = (PropertiesService.getScriptProperties().getProperty(RE_PROP_SPREADSHEET_ID) || '').trim();
+  if (id) return SpreadsheetApp.openById(id);
+
+  var active = SpreadsheetApp.getActive();
+  if (active) return active;
+
+  throw new Error(
+    'スプレッドシートが見つかりません。スクリプトプロパティ ' + RE_PROP_SPREADSHEET_ID +
+    ' に、銘柄マスタを置くスプレッドシートのIDを設定してください。');
+}
+
 /** 銘柄マスタを読み込む。 */
 function readUniverse_() {
-  var sh = SpreadsheetApp.getActive().getSheetByName(RE_SHEET_UNIVERSE);
+  var sh = getSpreadsheet_().getSheetByName(RE_SHEET_UNIVERSE);
   if (!sh || sh.getLastRow() < 2) return { rows: [], isSeed: false };
 
   var values = sh.getRange(2, 1, sh.getLastRow() - 1, 3).getValues();
@@ -515,7 +536,10 @@ function escapeHtml_(s) {
 // 銘柄マスタの整備
 // =======================================================================
 
-/** 初期リストで銘柄マスタを作成する。 */
+/**
+ * 初期リストで銘柄マスタを作成する。
+ * 銘柄マスタが無い状態で集計を実行したときにも自動で呼ばれる。
+ */
 function initUniverseSheet() {
   var rows = RE_SEED_STOCKS.map(function (s) { return [s[0], s[1], '']; });
   writeUniverse_(rows, true);
@@ -605,7 +629,7 @@ function validateUniverse() {
 }
 
 function writeUniverse_(rows, isSeed) {
-  var ss = SpreadsheetApp.getActive();
+  var ss = getSpreadsheet_();
   var sh = ss.getSheetByName(RE_SHEET_UNIVERSE) || ss.insertSheet(RE_SHEET_UNIVERSE);
   sh.clear();
   sh.getRange(1, 1, 1, 3).setValues([['コード', '銘柄名', '市場区分']]).setFontWeight('bold');
