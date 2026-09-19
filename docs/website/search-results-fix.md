@@ -1,0 +1,122 @@
+# 会社名検索の結果を新サイトに切り替える（旧サイト・いえらぶ表記の修正）
+
+作成日：2026-09-19
+
+## 1. 現状（2026-09-19 時点の確認結果）
+
+| 項目 | 状態 |
+| --- | --- |
+| 旧サイト `s-house.biz` | AMS（amsstudio.jp）で運用中。まだ公開されており、会社名検索で1位に出る。会社概要ページに旧住所（恵比寿南1-20-6）・旧電話が残っている |
+| 新サイト `smarthouse77.jp` | Netlify で公開（8/21〜）。DNS は `smarthouse77.jp` → Netlify、`www` → `*.netlify.app` に向いている |
+| 新サイトの検索登録 | `site:smarthouse77.jp` で検索してもヒットなし（未インデックス）。Search Console は 8/24 に `sc-domain:smarthouse77.jp` で登録済み（島田さん） |
+| いえらぶ 会社ページ | `ielove.co.jp/company/co-59375/` に旧住所（恵比寿南1丁目）で掲載 |
+| Google ビジネスプロフィール | 8/24 に URL を新サイトへ変更済み（住所・電話は要確認） |
+| Backlog SHS-531 | 9/15 島田さんから「AMS 解約します。ドメイン移管なしで大丈夫でしょうか」の確認待ち。AMS の解約期限は 9 月末 |
+
+外部に残っている旧情報の掲載先（確認できた範囲）
+
+- s-house.biz 本体（トップ・会社概要・お問い合わせ）
+- いえらぶ 会社ページ
+- Instagram プロフィール（smart_house2102）
+- 社員のメール署名の一部（URL が s-house.biz のまま）
+- 物件概要書のフッター（URL が s-house.biz、携帯が旧番号のもの）
+
+## 2. 方針
+
+**s-house.biz は捨てずに残し、新サイトへ 301 リダイレクトする。**
+
+理由
+
+1. 旧サイトのページは検索上位に残っている。ドメインを手放すと、Google が旧ページを消すまで数週間〜数か月、その間は「エラーになる旧情報」が上位に出続ける。
+2. リダイレクトすれば、旧サイトの評価が新サイトに引き継がれ、新サイトが上位に出やすくなる。
+3. 名刺・チラシ・過去メールの URL からも新サイトに到達できる。
+4. 手放したドメインは第三者に取られる可能性がある（社名で検索される URL なので危険）。
+
+## 3. 作業手順
+
+### A. 旧サイト（AMS）と s-house.biz ドメイン　担当：島田さん
+
+1. AMS に「ドメインは他社へ移管する。ホームページ契約のみ解約」と伝える。AuthCode（認証コード）と移管ロック解除を依頼する。
+2. お名前.com で `s-house.biz` の移管を申し込む（smarthouse77.jp と同じアカウント）。
+3. 移管完了後、お名前.com の DNS を Netlify に向ける（A レコード `75.2.60.5`、`www` は CNAME で Netlify のサイト名）。
+4. Netlify の Domain management に `s-house.biz` と `www.s-house.biz` を追加する。
+5. 新サイトのリポジトリ直下に `_redirects`（下記）を置いて再デプロイする。
+6. ブラウザで `https://s-house.biz/company.html` を開き、`https://smarthouse77.jp/` に飛ぶことを確認する。
+7. その後で AMS のホームページ契約を解約する（順番を逆にしない）。
+
+**AMS の解約期限（9月末）までに移管が終わらない場合**：ホームページ契約だけ先に解約し、ドメインだけ AMS に残して移管手続きを続ける。旧サイトが消えるだけなので、旧情報の露出は止まる。ドメインを失効させることだけは避ける。
+
+`_redirects`（Netlify）
+
+```text
+https://s-house.biz/*        https://smarthouse77.jp/:splat  301!
+https://www.s-house.biz/*    https://smarthouse77.jp/:splat  301!
+http://s-house.biz/*         https://smarthouse77.jp/:splat  301!
+http://www.s-house.biz/*     https://smarthouse77.jp/:splat  301!
+```
+
+旧サイトの主要ページは `company.html`、`contact.html`、`notice/` なので、上の全ページ転送で足りる。
+
+### B. 新サイトを検索に載せる　担当：島田さん
+
+1. Search Console（`sc-domain:smarthouse77.jp`）で URL 検査 → `https://smarthouse77.jp/` を「インデックス登録をリクエスト」。会社概要・お問い合わせページも同様。
+2. サイトマップ（`https://smarthouse77.jp/sitemap.xml`）を送信。無ければ作って置く。
+3. トップページの `<title>` に「株式会社スマートハウス｜恵比寿｜不動産…」のように会社名と地名を入れる。`meta description` にも会社名・恵比寿・電話番号を入れる。
+4. ページ内に会社名・新住所・代表電話をテキストで載せる（画像だけにしない）。会社概要ページに以下の構造化データを入れる。
+5. `www.smarthouse77.jp` と `*.netlify.app` が `https://smarthouse77.jp` に転送されているか確認（Netlify の Primary domain 設定）。
+6. `robots.txt` に `Disallow: /` や `noindex` が残っていないか確認。
+
+構造化データ（会社概要ページの `<head>` に入れる）
+
+```html
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "RealEstateAgent",
+  "name": "株式会社スマートハウス",
+  "url": "https://smarthouse77.jp/",
+  "telephone": "+81-3-5789-5831",
+  "address": {
+    "@type": "PostalAddress",
+    "postalCode": "150-6018",
+    "addressRegion": "東京都",
+    "addressLocality": "渋谷区",
+    "streetAddress": "恵比寿4-20-3 恵比寿ガーデンプレイスタワー18階",
+    "addressCountry": "JP"
+  },
+  "areaServed": ["東京都", "神奈川県"],
+  "sameAs": ["https://www.instagram.com/smart_house2102/"]
+}
+</script>
+```
+
+### C. いえらぶ 会社ページの修正　担当：小林（承認）→ 島田さん or 佐々木さん
+
+- いえらぶの FAQ では「掲載中の不動産会社名と変更内容を記載の上、お問い合わせフォームから連絡」となっている。
+- 3 月に佐々木さんと商談した いえらぶ 山田さん（ielove-cloud@ielove-group.jp）にも同じ依頼を送ると早い。
+- 依頼内容：住所 → 〒150-6018 東京都渋谷区恵比寿4-20-3 恵比寿ガーデンプレイスタワー18階／電話 → 03-5789-5831／URL → https://smarthouse77.jp/
+- メール下書きは Gmail に作成済み（送信前に小林さんが確認）。
+
+### D. Google ビジネスプロフィール　担当：島田さん
+
+- 住所・電話・営業時間・定休日（水・日）が新情報になっているか確認。旧住所のままなら変更申請。
+- ビジネス名は「株式会社スマートハウス」で統一。
+
+### E. 社内で直すもの　担当：各自
+
+- メール署名の URL を `https://smarthouse77.jp/` に統一（森さんの署名が `s-house.biz` のまま）。
+- 物件概要書・会社案内のフッター URL を新サイトに。小林の対外携帯は 070-8961-0946 に統一（旧 080 番号を載せない）。
+- Instagram プロフィールの住所・URL。
+- engage（採用ページ）の所在地。
+
+## 4. 確認の目安
+
+- 1〜2 週間後：`site:smarthouse77.jp` でトップページが出る。
+- 移管・リダイレクト完了後 2〜4 週間：会社名検索で新サイトが 1 位、旧 URL は新サイトに転送される。
+- いえらぶは依頼後、数日〜2 週間で反映。
+
+## 5. 関連する記録
+
+- Backlog：SHS-531「ホームページ更新（２０２６年１０月に発表）」
+- Search Console：`sc-domain:smarthouse77.jp`（会社アカウント）
+- ドメイン管理：お名前.com（smarthouse77.jp）／AMS（s-house.biz、移管予定）
