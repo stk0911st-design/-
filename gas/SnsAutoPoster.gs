@@ -2,9 +2,12 @@
  * LINE・Instagram 自動投稿（週1不動産トピック）
  *
  * Claude のルーティンが毎週送る「【LINE原稿】」メールを読み、
- * 代表が「OK」と返信したものだけを、配信予定日の 20 時台に
- * LINE 公式アカウント（一斉配信）と Instagram へ投稿する。
- * 返信がなければ投稿しない。「NG」「中止」と返信すれば取りやめる。
+ * 配信予定日の 20 時台に LINE 公式アカウント（一斉配信）と Instagram へ投稿する。
+ *
+ * 承認の方式（スクリプトプロパティ APPROVAL_MODE）:
+ *   optin  （既定）代表が「OK」と返信したものだけ投稿する。返信がなければ投稿しない。
+ *   optout 代表から「NG」「中止」の返信がない限り投稿する。
+ * どちらの方式でも「NG」「中止」の返信があれば取りやめる。
  *
  * 想定トリガー: 時間主導型 / 時間ベース / 1時間おき（関数 snsHourlyJob）
  *
@@ -16,6 +19,7 @@
  *   NOTIFY_TO                  結果の通知先（カンマ区切り）
  *   IMAGE_FOLDER_ID            （任意）投稿画像を保存する Drive フォルダのID。未設定ならマイドライブ直下
  *   LINE_WITH_IMAGE            （任意）true で LINE にも画像を付ける。既定は文章のみ
+ *   APPROVAL_MODE              （任意）optin（既定）または optout。上記参照
  *   DRY_RUN                    （任意）true の間は投稿せず、投稿予定の内容を通知メールで送る
  *
  * 原稿メールの書式（Claude のルーティンが出力する）:
@@ -23,6 +27,8 @@
  *   IMAGE_URL: https://...（Canva の書き出しURL）
  *   ===LINE_START=== 〜 ===LINE_END===   LINE に送る本文
  *   ===IG_START===   〜 ===IG_END===     Instagram のキャプション
+ *   目印の行には「（ここから下をLINEに貼り付け）」のような説明を続けて書いてよい。
+ *   手で貼り付けて投稿する担当者向けのメールと、自動投稿で同じ書式を使うため。
  */
 
 var SNS = {
@@ -60,6 +66,7 @@ function snsHourlyJob() {
     if (now < start) return;
 
     var approval = snsApproval_(d.thread, cfg.approvers);
+    if (!approval && cfg.approvalMode === 'optout') approval = 'approved';
     if (approval === 'rejected') {
       store.setProperty(key + ':status', 'rejected');
       snsNotify_(cfg, d, '中止の返信があったため投稿しませんでした', '');
@@ -106,7 +113,7 @@ function previewSnsDrafts() {
   drafts.forEach(function (d) {
     Logger.log('==== 配信予定日: ' + d.date + '（' + Utilities.formatDate(snsScheduledAt_(d.date), SNS.TZ, 'M/d HH:mm') + ' から投稿）');
     Logger.log('件名: ' + d.thread.getFirstMessageSubject());
-    Logger.log('承認状態: ' + (snsApproval_(d.thread, cfg.approvers) || '未承認'));
+    Logger.log('承認状態: ' + (snsApproval_(d.thread, cfg.approvers) || '返信なし') + '（方式: ' + cfg.approvalMode + '）');
     Logger.log('処理状況: ' + (store.getProperty('sns:' + d.date + ':status') || '未処理'));
     Logger.log('画像URL（Canva）: ' + (d.imageUrl || '（なし）'));
     Logger.log('--- LINE（' + d.line.length + '字）---\n' + d.line);
@@ -159,7 +166,8 @@ function snsConfig_() {
     notifyTo: get('NOTIFY_TO'),
     folderId: get('IMAGE_FOLDER_ID'),
     lineWithImage: get('LINE_WITH_IMAGE').toLowerCase() === 'true',
-    dryRun: get('DRY_RUN').toLowerCase() === 'true'
+    dryRun: get('DRY_RUN').toLowerCase() === 'true',
+    approvalMode: get('APPROVAL_MODE').toLowerCase() === 'optout' ? 'optout' : 'optin'
   };
   if (cfg.approvers.length === 0) throw new Error('スクリプトプロパティ APPROVER_EMAILS が未設定です。');
   if (!cfg.notifyTo) throw new Error('スクリプトプロパティ NOTIFY_TO が未設定です。');
@@ -185,7 +193,7 @@ function snsFindDrafts_(cfg) {
 function snsParseDraft_(body) {
   var text = body.replace(/\r\n/g, '\n');
   var block = function (name) {
-    var m = text.match(new RegExp('===' + name + '_START===\\s*\\n([\\s\\S]*?)\\n\\s*===' + name + '_END==='));
+    var m = text.match(new RegExp('===' + name + '_START===[^\\n]*\\n([\\s\\S]*?)\\n[^\\n]*===' + name + '_END==='));
     return m ? m[1].trim() : '';
   };
   var date = (text.match(/POST_DATE:\s*(\d{4}-\d{2}-\d{2})/) || [])[1] || '';
