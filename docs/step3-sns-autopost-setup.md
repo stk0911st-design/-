@@ -10,7 +10,7 @@ LINE 公式アカウントと Instagram へ自動で投稿する仕組みの導�
 移行の段階は `docs/line-weekly-topics.md` の「自動投稿への移行計画」を参照。
 
 ```
-火曜 8:00  Claude ルーティン：原稿＋Canva 画像を作り、代表にメール
+火曜 8:00  Claude ルーティン：原稿＋Canva 画像を作り、投稿担当者あて（代表CC）にメール
    ↓
 代表：止める場合だけ「NG」と返信（optout）／投稿してよければ「OK」と返信（optin）
    ↓
