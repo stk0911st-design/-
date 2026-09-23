@@ -11,8 +11,11 @@
 docs/routine-prompt.md      Claude ルーティン（平日 8:00 JST 起動）の設定とプロンプト
 docs/step1-receiver-setup.md 受け皿ウェブアプリの導入手順
 docs/step2-connection-test.md 入力アプリ→受け皿の疎通テスト手順
+docs/step3-sns-autopost-setup.md LINE・Instagram 自動投稿の導入手順
+docs/line-weekly-topics.md  LINE・Instagram 週1不動産トピックの運用ルールと原稿
 gas/DailyReportMailer.gs    まとめメール送信（Apps Script 版・恒久運用用）
 gas/Receiver.gs             入力アプリからの POST を受けてスプレッドシートに書く受け皿
+gas/SnsAutoPoster.gs        承認済みの週1原稿を LINE・Instagram に自動投稿
 gas/README.md               DailyReportMailer の導入手順
 ```
 
