@@ -1,6 +1,6 @@
-# 南万騎が原駅 中古マンション 売り出し／成約 事例トラッカー
+# 南万騎が原駅 不動産（土地・戸建て・中古マンション）売り出し／成約 事例トラッカー
 
-相鉄いずみ野線 **南万騎が原駅**（横浜市旭区）を最寄りとする中古マンションについて、
+相鉄いずみ野線 **南万騎が原駅**（横浜市旭区）を最寄りとする**土地・戸建て・中古マンション**について、
 週に1回「いま売りに出ている物件」のスナップショットを取り、前週との差分から
 **新規掲載 / 価格改定 / 掲載終了** を判定して積み上げていく仕組みです。
 成約事例は別ルートで取得し、同じ台帳に並べます。
@@ -49,15 +49,22 @@ Google ドライブ フォルダ「南万騎が原 マンション台帳」
 
 ## スナップショットのCSV形式
 
-収集側は、出どころが何であれこの18列に正規化して出力します。
+収集側は、出どころが何であれこの25列に正規化して出力します。
+土地・戸建て・マンションを1つの表で扱い、使わない列は空欄にします。
 
 ```
-source,source_id,url,mansion_name,address,station,walk_min,price_man,layout,
-area_m2,balcony_m2,floor,floors_total,built_ym,units_total,management_fee,repair_fund,remarks
+source,source_id,url,property_type,property_name,address,station,walk_min,price_man,layout,
+area_m2,land_m2,building_m2,balcony_m2,floor,floors_total,built_ym,units_total,
+management_fee,repair_fund,zoning,coverage_ratio,far_ratio,road,remarks
 ```
 
+- `property_type` … **`土地` / `戸建て` / `マンション`**
 - `price_man` … 価格（**万円**単位）
-- `area_m2` … 専有面積（m²）
+- `area_m2` … 専有面積（マンション）
+- `land_m2` … 土地面積、`building_m2` … 建物面積（土地・戸建て）
+- `zoning` `coverage_ratio` `far_ratio` `road` … 用途地域・建ぺい率・容積率・接道（土地・戸建て）
+
+坪単価は、**土地・戸建ては土地面積**、マンションは専有面積を基準に計算します。
 - `built_ym` … 築年月（`2007年3月` / `2007/03` などを解釈）
 - `source` … 出どころの名前。`source_id` があれば同一物件の追跡に使い、無ければ
   マンション名・間取り・面積・所在階から同一性を判定します
@@ -90,6 +97,7 @@ python3 scripts/mansion_track.py stats
 `gas/MansionWatcher.gs` の `fetchContractsIfNewQuarter_()` が横浜市旭区（市区町村コード `14106`）を
 取得し、南万騎が原駅圏の町名（`万騎が原` `さちが丘` `柏町` `善部町` `今川町` `南希望が丘`
 `中希望が丘` `大池町` ／ スクリプトプロパティ `DISTRICTS` で変更可）で絞り込みます。
+マンションに加えて宅地・土地の成約も取得します。
 
 公表は数か月遅れるため、毎回直近5四半期を見て未取得分だけを足します。
 
@@ -118,7 +126,7 @@ Claude のセッションからは不動産サイト・レインズ・国交省�
 
 ### 1.（人）レインズからエクスポートを置く
 
-南万騎が原駅を最寄りとする中古マンションの売出中物件を検索してエクスポートし、
+南万騎が原駅を最寄りとする**土地・戸建て・中古マンション**の売出中物件を検索してエクスポートし、
 ドライブのフォルダ「南万騎が原 マンション台帳」に置きます。
 
 - ファイル名は **`南万騎が原_売り出し_YYYY-MM-DD`**

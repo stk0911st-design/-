@@ -31,19 +31,24 @@ var SHEET_EVENTS    = '更新履歴';
 var SHEET_CONTRACTS = '成約事例';
 
 var SNAPSHOT_HEADER = [
-  'source', 'source_id', 'url', 'mansion_name', 'address', 'station', 'walk_min',
-  'price_man', 'layout', 'area_m2', 'balcony_m2', 'floor', 'floors_total',
-  'built_ym', 'units_total', 'management_fee', 'repair_fund', 'remarks'
+  'source', 'source_id', 'url', 'property_type', 'property_name', 'address',
+  'station', 'walk_min', 'price_man', 'layout',
+  'area_m2', 'land_m2', 'building_m2', 'balcony_m2',
+  'floor', 'floors_total', 'built_ym', 'units_total',
+  'management_fee', 'repair_fund',
+  'zoning', 'coverage_ratio', 'far_ratio', 'road', 'remarks'
 ];
 var LISTING_HEADER = [
-  'listing_id', 'status', 'first_seen', 'last_seen', 'closed_date', 'weeks_on_market',
-  'source', 'source_id', 'url', 'mansion_name', 'address', 'station', 'walk_min',
+  'listing_id', 'status', 'property_type', 'first_seen', 'last_seen', 'closed_date',
+  'weeks_on_market', 'source', 'source_id', 'url',
+  'property_name', 'address', 'station', 'walk_min',
   'price_initial_man', 'price_current_man', 'price_cut_count',
-  'layout', 'area_m2', 'unit_price_man_tsubo', 'floor', 'built_ym', 'remarks'
+  'layout', 'area_m2', 'land_m2', 'building_m2', 'unit_price_man_tsubo',
+  'floor', 'built_ym', 'zoning', 'coverage_ratio', 'far_ratio', 'road', 'remarks'
 ];
-var EVENT_HEADER = ['event_date', 'event_type', 'listing_id', 'mansion_name', 'layout', 'area_m2', 'detail'];
+var EVENT_HEADER = ['event_date', 'event_type', 'listing_id', 'property_type', 'property_name', 'layout', 'area_m2', 'detail'];
 var CONTRACT_HEADER = [
-  'contract_id', 'contract_period', 'source', 'mansion_name', 'area_name',
+  'contract_id', 'contract_period', 'source', 'property_type', 'property_name', 'area_name',
   'price_man', 'layout', 'area_m2', 'built_ym', 'floor', 'station', 'walk_min',
   'unit_price_man_tsubo', 'remarks'
 ];
@@ -112,14 +117,14 @@ function ingestSnapshot_() {
       listings.push({
         listing_id: id, status: '売出中', first_seen: today, last_seen: today, closed_date: '',
         weeks_on_market: 0, source: row.source, source_id: row.source_id, url: row.url,
-        mansion_name: row.mansion_name, address: row.address, station: row.station,
+        property_name: row.property_name, address: row.address, station: row.station,
         walk_min: row.walk_min, price_initial_man: price, price_current_man: price,
         price_cut_count: 0, layout: row.layout, area_m2: row.area_m2,
         unit_price_man_tsubo: unitPrice_(price, row.area_m2), floor: row.floor,
         built_ym: row.built_ym, remarks: row.remarks
       });
       index[id] = listings.length - 1;
-      events.push([today, '新規掲載', id, row.mansion_name, row.layout, row.area_m2,
+      events.push([today, '新規掲載', id, row.property_name, row.layout, row.area_m2,
                    money_(price) + '万円 / ' + row.layout + ' / ' + row.area_m2 + 'm2']);
       summary.added++;
       return;
@@ -130,7 +135,7 @@ function ingestSnapshot_() {
     if (price !== '' && old !== '' && price !== old) {
       var diff = price - old;
       if (diff < 0) cur.price_cut_count = (Number(cur.price_cut_count) || 0) + 1;
-      events.push([today, '価格改定', id, cur.mansion_name, cur.layout, cur.area_m2,
+      events.push([today, '価格改定', id, cur.property_name, cur.layout, cur.area_m2,
                    money_(old) + '万円 → ' + money_(price) + '万円 (' +
                    (diff > 0 ? '+' : '') + money_(diff) + '万円)']);
       summary.repriced++;
@@ -151,7 +156,7 @@ function ingestSnapshot_() {
     r.status = '掲載終了';
     r.closed_date = today;
     r.weeks_on_market = weeksBetween_(r.first_seen, today);
-    events.push([today, '掲載終了', r.listing_id, r.mansion_name, r.layout, r.area_m2,
+    events.push([today, '掲載終了', r.listing_id, r.property_name, r.layout, r.area_m2,
                  '最終 ' + money_(r.price_current_man) + '万円 / 掲載 ' + r.weeks_on_market + '週']);
     summary.closed++;
   });
@@ -215,7 +220,8 @@ function fetchQuarter_(key, year, quarter, districts) {
 
   var data = JSON.parse(res.getContentText()).data || [];
   return data.filter(function (d) {
-    if (String(d.Type || '').indexOf('マンション') < 0) return false;
+    var t = String(d.Type || '');
+    if (t.indexOf('マンション') < 0 && t.indexOf('宅地') < 0 && t.indexOf('土地') < 0) return false;
     return districts.some(function (n) { return String(d.DistrictName || '').indexOf(n.trim()) >= 0; });
   }).map(function (d) {
     var priceMan = Math.round((Number(d.TradePrice) || 0) / 10000);
@@ -223,7 +229,7 @@ function fetchQuarter_(key, year, quarter, districts) {
     var period = d.Period || (year + '年第' + quarter + '四半期');
     var id = [period, d.DistrictName, d.FloorPlan, area, priceMan].join('|');
     return [
-      id, period, '不動産情報ライブラリ（成約価格）', '', d.DistrictName || '',
+      id, period, '不動産情報ライブラリ（成約価格）', d.Type || '', '', d.DistrictName || '',
       priceMan, d.FloorPlan || '', area, d.BuildingYear || '', '',
       d.NearestStation || '', d.TimeToNearestStation || '',
       unitPrice_(priceMan, area), d.Structure || ''
@@ -324,7 +330,7 @@ function listingId_(row) {
   var src = String(row.source || '').trim();
   var sid = String(row.source_id || '').trim();
   var key = sid ? (src + '|' + sid)
-                : [src, row.mansion_name, row.layout, row.area_m2, row.floor].join('|');
+                : [src, row.property_name, row.layout, row.area_m2, row.floor].join('|');
   return Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_1, key, Utilities.Charset.UTF_8)
     .map(function (b) { return ('0' + (b & 0xff).toString(16)).slice(-2); })
     .join('').slice(0, 12);

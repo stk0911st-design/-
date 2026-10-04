@@ -1,4 +1,4 @@
-<title>南万騎が原 マンション台帳</title>
+<title>南万騎が原 不動産台帳</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
@@ -126,8 +126,8 @@ footer code{font-family:"IBM Plex Mono",monospace}
 <div class="wrap">
   <header class="head">
     <div>
-      <h1>南万騎が原 マンション台帳</h1>
-      <p class="sub">相鉄いずみ野線 南万騎が原駅 ／ 中古マンション 売り出し・成約事例の週次記録</p>
+      <h1>南万騎が原 不動産台帳</h1>
+      <p class="sub">相鉄いずみ野線 南万騎が原駅 ／ 土地・戸建て・中古マンションの売り出し／成約事例</p>
     </div>
     <div class="meta" id="meta"></div>
   </header>
@@ -138,7 +138,7 @@ footer code{font-family:"IBM Plex Mono",monospace}
 
   <div class="bar">
     <div class="tabs" role="tablist" id="tabs"></div>
-    <input type="search" id="q" placeholder="マンション名・間取り・住所で絞り込む" aria-label="絞り込み">
+    <input type="search" id="q" placeholder="物件名・種別・間取り・住所で絞り込む" aria-label="絞り込み">
   </div>
 
   <section class="panel"><div class="scroll"><table>
@@ -148,7 +148,7 @@ footer code{font-family:"IBM Plex Mono",monospace}
 
   <footer>
     掲載終了は成約とは限りません（売主都合の取下げ・媒介先の変更を含む）。成約の確定はレインズ等の成約事例で照合してください。<br>
-    更新は <code>python3 scripts/mansion_track.py ingest &lt;週次スナップショット.csv&gt;</code> → <code>view</code>。
+    更新は <code>python3 scripts/mansion_track.py ingest &lt;スナップショット.csv&gt;</code> → <code>view</code>。
   </footer>
 </div>
 
@@ -200,8 +200,8 @@ const weeksCell = r => {
   return `<div class="wk ${w >= 26 ? "long" : ""}"><span class="bar"><i style="width:${Math.min(w/52*100,100)}%"></i></span>${w}週</div>`;
 };
 const nameCell = r => r.url
-  ? `<a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.mansion_name)}</a>`
-  : esc(r.mansion_name);
+  ? `<a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.property_name)}</a>`
+  : esc(r.property_name);
 const cutCell = r => {
   const c = n(r.price_cut_count) ?? 0;
   if (!c) return `<span class="dim">—</span>`;
@@ -213,11 +213,13 @@ const VIEWS = {
   active: {
     label: "売出中", rows: active,
     cols: [
-      ["マンション名", r => nameCell(r), "name"],
+      ["物件名", r => nameCell(r), "name"], ["種別", r => `<span class="chip">${esc(r.property_type||"—")}</span>`, ""],
       ["価格", r => money(r.price_current_man) + "<span class='dim'> 万</span>", "num", r => n(r.price_current_man)],
       ["坪単価", r => r.unit_price_man_tsubo || "", "num", r => n(r.unit_price_man_tsubo)],
       ["間取り", r => esc(r.layout), ""],
       ["専有", r => (r.area_m2 || "") + "<span class='dim'> m²</span>", "num", r => n(r.area_m2)],
+      ["土地", r => (r.land_m2 || "") + "<span class='dim'> m²</span>", "num", r => n(r.land_m2)],
+      ["建物", r => (r.building_m2 || "") + "<span class='dim'> m²</span>", "num", r => n(r.building_m2)],
       ["階", r => esc(r.floor), ""],
       ["築年月", r => esc(r.built_ym), ""],
       ["築年数", r => (r.age_years || "") + "<span class='dim'> 年</span>", "num", r => n(r.age_years)],
@@ -231,7 +233,7 @@ const VIEWS = {
   closed: {
     label: "掲載終了", rows: closed,
     cols: [
-      ["マンション名", r => nameCell(r), "name"],
+      ["物件名", r => nameCell(r), "name"], ["種別", r => `<span class="chip">${esc(r.property_type||"—")}</span>`, ""],
       ["最終価格", r => money(r.price_current_man) + "<span class='dim'> 万</span>", "num", r => n(r.price_current_man)],
       ["当初価格", r => money(r.price_initial_man) + "<span class='dim'> 万</span>", "num", r => n(r.price_initial_man)],
       ["値下げ", cutCell, "num", r => n(r.price_cut_count)],
@@ -247,7 +249,7 @@ const VIEWS = {
   contracts: {
     label: "成約事例", rows: D.contracts,
     cols: [
-      ["マンション名／地域", r => esc(r.mansion_name || r.area_name), "name"],
+      ["物件名／地域", r => esc(r.property_name || r.area_name), "name"], ["種別", r => `<span class="chip">${esc(r.property_type||"—")}</span>`, ""],
       ["成約時期", r => esc(r.contract_period), ""],
       ["成約価格", r => money(r.price_man) + "<span class='dim'> 万</span>", "num", r => n(r.price_man)],
       ["坪単価", r => r.unit_price_man_tsubo || "", "num", r => n(r.unit_price_man_tsubo)],
@@ -267,7 +269,7 @@ const VIEWS = {
         const c = {"新規掲載":"new","価格改定":"cut","掲載終了":"gone"}[r.event_type] || "";
         return `<span class="chip ${c}">${esc(r.event_type)}</span>`;
       }, ""],
-      ["マンション名", r => esc(r.mansion_name), "name"],
+      ["物件名", r => esc(r.property_name), "name"], ["種別", r => `<span class="chip">${esc(r.property_type||"—")}</span>`, ""],
       ["間取り", r => esc(r.layout), ""],
       ["専有", r => (r.area_m2 || "") + "<span class='dim'> m²</span>", "num", r => n(r.area_m2)],
       ["内容", r => `<span style="white-space:normal">${esc(r.detail)}</span>`, ""],

@@ -36,28 +36,32 @@ CONTRACTS = os.path.join(DATA, "contracts.csv")
 
 # スナップショット（収集側が吐く正規化済みCSV）の列
 SNAPSHOT_COLS = [
-    "source", "source_id", "url", "mansion_name", "address",
-    "station", "walk_min", "price_man", "layout", "area_m2",
-    "balcony_m2", "floor", "floors_total", "built_ym",
-    "units_total", "management_fee", "repair_fund", "remarks",
+    "source", "source_id", "url", "property_type", "property_name", "address",
+    "station", "walk_min", "price_man", "layout",
+    "area_m2", "land_m2", "building_m2", "balcony_m2",
+    "floor", "floors_total", "built_ym", "units_total",
+    "management_fee", "repair_fund",
+    "zoning", "coverage_ratio", "far_ratio", "road", "remarks",
 ]
 
 # 蓄積される売り出し事例マスタの列
 LISTING_COLS = [
-    "listing_id", "status", "first_seen", "last_seen", "closed_date",
-    "weeks_on_market", "source", "source_id", "url",
-    "mansion_name", "address", "station", "walk_min",
+    "listing_id", "status", "property_type", "first_seen", "last_seen",
+    "closed_date", "weeks_on_market", "source", "source_id", "url",
+    "property_name", "address", "station", "walk_min",
     "price_initial_man", "price_current_man", "price_cut_count",
-    "layout", "area_m2", "balcony_m2", "unit_price_man_tsubo",
-    "floor", "floors_total", "built_ym", "age_years",
-    "units_total", "management_fee", "repair_fund", "remarks",
+    "layout", "area_m2", "land_m2", "building_m2", "balcony_m2",
+    "unit_price_man_tsubo", "floor", "floors_total", "built_ym", "age_years",
+    "units_total", "management_fee", "repair_fund",
+    "zoning", "coverage_ratio", "far_ratio", "road", "remarks",
 ]
 
 HISTORY_COLS = ["listing_id", "observed_date", "price_man"]
-EVENT_COLS = ["event_date", "event_type", "listing_id", "mansion_name",
-              "layout", "area_m2", "detail"]
+EVENT_COLS = ["event_date", "event_type", "listing_id", "property_type",
+              "property_name", "layout", "area_m2", "detail"]
 CONTRACT_COLS = [
-    "contract_id", "contract_period", "source", "mansion_name", "area_name",
+    "contract_id", "contract_period", "source", "property_type",
+    "property_name", "area_name",
     "price_man", "layout", "area_m2", "built_ym", "floor",
     "station", "walk_min", "unit_price_man_tsubo", "remarks",
 ]
@@ -126,12 +130,37 @@ def age_years(built_ym, on=None):
     return str(max(a, 0))
 
 
+def tsubo_area(row):
+    """坪単価の基準にする面積。土地・戸建ては土地面積、マンションは専有面積。"""
+    t = str(row.get("property_type") or "")
+    if "土地" in t or "戸建" in t or "一戸建" in t:
+        return row.get("land_m2") or row.get("area_m2")
+    return row.get("area_m2") or row.get("land_m2")
+
+
 def unit_price(price_man, area_m2):
     """坪単価（万円/坪）。"""
     p, a = num(price_man), num(area_m2)
     if not p or not a:
         return ""
     return f"{p / (a / TSUBO):.1f}"
+
+
+def describe(row):
+    """イベント本文用の短い説明。空の項目は並べない。"""
+    parts = []
+    if row.get("layout"):
+        parts.append(str(row["layout"]))
+    a = num(row.get("area_m2"))
+    if a:
+        parts.append(f"専有{a:,.2f}m2")
+    l = num(row.get("land_m2"))
+    if l:
+        parts.append(f"土地{l:,.2f}m2")
+    b = num(row.get("building_m2"))
+    if b:
+        parts.append(f"建物{b:,.2f}m2")
+    return " / ".join(parts)
 
 
 def make_listing_id(row):
@@ -143,9 +172,12 @@ def make_listing_id(row):
     else:
         key = "|".join([
             src,
-            (row.get("mansion_name") or "").strip(),
+            (row.get("property_type") or "").strip(),
+            (row.get("property_name") or "").strip(),
+            (row.get("address") or "").strip(),
             (row.get("layout") or "").strip(),
             fmt(row.get("area_m2"), 2),
+            fmt(row.get("land_m2"), 2),
             (row.get("floor") or "").strip(),
         ])
     return hashlib.sha1(key.encode("utf-8")).hexdigest()[:12]
@@ -191,15 +223,18 @@ def ingest(path, date=None):
             "source": row.get("source", ""),
             "source_id": row.get("source_id", ""),
             "url": row.get("url", ""),
-            "mansion_name": row.get("mansion_name", ""),
+            "property_type": row.get("property_type", ""),
+            "property_name": row.get("property_name", ""),
             "address": row.get("address", ""),
             "station": row.get("station", ""),
             "walk_min": row.get("walk_min", ""),
             "price_current_man": price,
             "layout": row.get("layout", ""),
             "area_m2": fmt(row.get("area_m2"), 2),
+            "land_m2": fmt(row.get("land_m2"), 2),
+            "building_m2": fmt(row.get("building_m2"), 2),
             "balcony_m2": fmt(row.get("balcony_m2"), 2),
-            "unit_price_man_tsubo": unit_price(price, row.get("area_m2")),
+            "unit_price_man_tsubo": unit_price(price, tsubo_area(row)),
             "floor": row.get("floor", ""),
             "floors_total": row.get("floors_total", ""),
             "built_ym": row.get("built_ym", ""),
@@ -207,6 +242,10 @@ def ingest(path, date=None):
             "units_total": row.get("units_total", ""),
             "management_fee": row.get("management_fee", ""),
             "repair_fund": row.get("repair_fund", ""),
+            "zoning": row.get("zoning", ""),
+            "coverage_ratio": row.get("coverage_ratio", ""),
+            "far_ratio": row.get("far_ratio", ""),
+            "road": row.get("road", ""),
             "remarks": row.get("remarks", ""),
         }
 
@@ -219,9 +258,10 @@ def ingest(path, date=None):
             history.append({"listing_id": lid, "observed_date": date, "price_man": price})
             events.append({
                 "event_date": date, "event_type": "新規掲載", "listing_id": lid,
-                "mansion_name": base["mansion_name"], "layout": base["layout"],
+                "property_type": base["property_type"],
+                "property_name": base["property_name"], "layout": base["layout"],
                 "area_m2": base["area_m2"],
-                "detail": f"{fmt(price)}万円 / {base['layout']} / {base['area_m2']}m2",
+                "detail": " / ".join(x for x in [f"{fmt(price)}万円", describe(base)] if x),
             })
             n_new += 1
             continue
@@ -241,7 +281,8 @@ def ingest(path, date=None):
             history.append({"listing_id": lid, "observed_date": date, "price_man": price})
             events.append({
                 "event_date": date, "event_type": "価格改定", "listing_id": lid,
-                "mansion_name": merged["mansion_name"], "layout": merged["layout"],
+                "property_type": merged.get("property_type", ""),
+                "property_name": merged["property_name"], "layout": merged["layout"],
                 "area_m2": merged["area_m2"],
                 "detail": f"{fmt(old_price)}万円 → {fmt(price)}万円 ({diff:+,.0f}万円)",
             })
@@ -262,14 +303,15 @@ def ingest(path, date=None):
         r["weeks_on_market"] = week_span(r.get("first_seen"), date)
         events.append({
             "event_date": date, "event_type": "掲載終了", "listing_id": lid,
-            "mansion_name": r.get("mansion_name", ""), "layout": r.get("layout", ""),
+            "property_type": r.get("property_type", ""),
+            "property_name": r.get("property_name", ""), "layout": r.get("layout", ""),
             "area_m2": r.get("area_m2", ""),
             "detail": f"最終 {fmt(r.get('price_current_man'))}万円 / 掲載 {r.get('weeks_on_market')}週",
         })
         n_closed += 1
 
     rows = sorted(listings.values(),
-                  key=lambda r: (r.get("status") != "売出中", r.get("mansion_name") or ""))
+                  key=lambda r: (r.get("status") != "売出中", r.get("property_name") or ""))
     write_csv(LISTINGS, LISTING_COLS, rows)
     write_csv(HISTORY, HISTORY_COLS, history)
     write_csv(EVENTS, EVENT_COLS, events)
@@ -305,7 +347,7 @@ def report(date=None):
         return xs[n // 2] if n % 2 else (xs[n // 2 - 1] + xs[n // 2]) / 2
 
     L = []
-    L.append(f"# 南万騎が原駅 中古マンション 週次レポート（{date}）\n")
+    L.append(f"# 南万騎が原駅 不動産 レポート（{date}）\n")
     L.append("## サマリー\n")
     L.append(f"- 売出中：**{len(active)}件**")
     L.append(f"- 今週の新規掲載：**{len(by_type['新規掲載'])}件**")
@@ -326,11 +368,11 @@ def report(date=None):
         if not evs:
             L.append("該当なし\n")
             return
-        L.append("| マンション名 | 間取り | 専有面積 | 内容 |")
-        L.append("| --- | --- | --- | --- |")
+        L.append("| 物件名 | 種別 | 間取り | 面積 | 内容 |")
+        L.append("| --- | --- | --- | --- | --- |")
         for e in evs:
-            L.append(f"| {e['mansion_name']} | {e['layout']} | "
-                     f"{e['area_m2']}m2 | {e['detail']} |")
+            L.append(f"| {e['property_name']} | {e.get('property_type','')} "
+                     f"| {e['layout']} | {e['area_m2']}m2 | {e['detail']} |")
         L.append("")
 
     table(by_type["新規掲載"], "新規に売り出された物件")
@@ -341,15 +383,16 @@ def report(date=None):
 
     L.append("## 売出中 一覧\n")
     if active:
-        L.append("| マンション名 | 価格 | 坪単価 | 間取り | 専有面積 | 階 | 築年 | 徒歩 | 掲載週数 | 値下げ |")
-        L.append("| --- | ---: | ---: | --- | ---: | --- | --- | ---: | ---: | ---: |")
+        L.append("| 物件名 | 種別 | 価格 | 坪単価 | 間取り | 専有 | 土地 | 建物 | 築年 | 徒歩 | 掲載週数 | 値下げ |")
+        L.append("| --- | --- | ---: | ---: | --- | ---: | ---: | ---: | --- | ---: | ---: | ---: |")
         for r in sorted(active, key=lambda x: -(num(x.get("price_current_man")) or 0)):
             L.append(
-                f"| {r.get('mansion_name','')} | {fmt(r.get('price_current_man'))}万円 "
+                f"| {r.get('property_name','')} | {r.get('property_type','')} "
+                f"| {fmt(r.get('price_current_man'))}万円 "
                 f"| {r.get('unit_price_man_tsubo','')} | {r.get('layout','')} "
-                f"| {r.get('area_m2','')}m2 | {r.get('floor','')} | {r.get('built_ym','')} "
-                f"| {r.get('walk_min','')}分 | {r.get('weeks_on_market','')}週 "
-                f"| {r.get('price_cut_count','')}回 |")
+                f"| {r.get('area_m2','')} | {r.get('land_m2','')} | {r.get('building_m2','')} "
+                f"| {r.get('built_ym','')} | {r.get('walk_min','')}分 "
+                f"| {r.get('weeks_on_market','')}週 | {r.get('price_cut_count','')}回 |")
     else:
         L.append("データがありません。スナップショットを ingest してください。")
     L.append("")

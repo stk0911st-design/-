@@ -1,4 +1,5 @@
-source,source_id,url,mansion_name,address,station,walk_min,price_man,layout,area_m2,balcony_m2,floor,floors_total,built_ym,units_total,management_fee,repair_fund,remarks
-サンプル,SAMPLE-001,,サンプルマンションA,横浜市旭区（サンプル）,南万騎が原,7,3480,3LDK,72.15,9.8,4/7,7,2007年3月,99,13500,9800,テスト用ダミー行
-サンプル,SAMPLE-002,,サンプルマンションA,横浜市旭区（サンプル）,南万騎が原,7,2980,2LDK,58.40,7.2,2/7,7,2007年3月,99,11200,8100,テスト用ダミー行
-サンプル,SAMPLE-003,,サンプルマンションB,横浜市旭区（サンプル）,南万騎が原,12,2180,3LDK,66.02,8.0,3/5,5,1995年3月,27,9800,7300,テスト用ダミー行
+source,source_id,url,property_type,property_name,address,station,walk_min,price_man,layout,area_m2,land_m2,building_m2,balcony_m2,floor,floors_total,built_ym,units_total,management_fee,repair_fund,zoning,coverage_ratio,far_ratio,road,remarks
+サンプル,SAMPLE-L01,,土地,サンプル売地A,横浜市旭区（サンプル）,南万騎が原,8,3480,,,165.20,,,,,,,,,第一種低層住居専用,50,100,南側公道4.0m,テスト用ダミー行
+サンプル,SAMPLE-L02,,土地,サンプル売地B,横浜市旭区（サンプル）,南万騎が原,15,2180,,,132.45,,,,,,,,,第一種低層住居専用,50,80,西側私道3.5m,テスト用ダミー行
+サンプル,SAMPLE-H01,,戸建て,サンプル中古戸建C,横浜市旭区（サンプル）,南万騎が原,5,3490,4LDK,,139.32,98.55,,,2,1998年6月,,,,第一種住居,60,200,東側公道5.0m,テスト用ダミー行
+サンプル,SAMPLE-M01,,マンション,サンプルマンションD,横浜市旭区（サンプル）,南万騎が原,7,3280,3LDK,72.15,,,9.8,4/7,7,2007年3月,99,13500,9800,,,,,テスト用ダミー行
