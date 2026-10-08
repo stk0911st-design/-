@@ -8,6 +8,7 @@
 | メール自動仕分け | 代表・役員宛メールの仕分け／予定登録／エスカレーション／返信下書き／記録 | [`docs/mail-triage.md`](docs/mail-triage.md) |
 | 不動産情報 日次件数 | その日届いた不動産情報の件数を毎日21時にメール報告 | [`docs/property-info-count-routine.md`](docs/property-info-count-routine.md) |
 | 査定未返答アラート | 物件紹介メールの受信から3営業日以内に査定を返していないものを毎営業日9時に通知 | [`docs/assessment-alert-routine.md`](docs/assessment-alert-routine.md) |
+| メール添付ファイル 自動保存 | 「ドライブ保存済」の物件メールの添付を、本文ドキュメントと同じドライブフォルダへ1時間ごとに保存 | [`docs/step3-attachment-saver-setup.md`](docs/step3-attachment-saver-setup.md) |
 
 ※ スプレッドシートID・宛先アドレス・API キーなどはこのリポジトリには置かず、
 実行環境側（Claude のルーティン設定、または Apps Script のスクリプトプロパティ）で管理します。
