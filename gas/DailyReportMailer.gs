@@ -1,15 +1,27 @@
 /**
- * 営業日報 まとめメール
+ * 営業日報 まとめメール ＋ 朝夕リマインドメール
  *
- * 日報カウンターのスプレッドシートから、前営業日に入力（保存）されたレコードを
- * 集計し、指定アドレスへ HTML メールで送信する。
+ * 日報カウンターのスプレッドシートから入力（保存）されたレコードを集計し、
+ * HTML メールで送信する。3種類のエントリポイントがある。
  *
- * 想定トリガー: 時間主導型 / 日付ベース / 午前8時〜9時（土日は自動スキップ）
+ *   1. sendDailyReportMail    … 前営業日ぶんのまとめを小林様へ（毎朝8:00想定）
+ *   2. sendEveningSummaryMail … 当日ぶんの入力状況を小林様へ、全担当者CCで（毎晩20:00想定）
+ *   3. sendMorningReminderMail… 担当者ひとりひとりへ、入力を促す個別メール（毎朝9:30想定）
  *
  * スクリプトプロパティ:
- *   RECIPIENT       送信先メールアドレス（必須）
- *   CC              CCアドレス（任意・カンマ区切り）
+ *   RECIPIENT       送信先メールアドレス（小林様。必須・1〜2のみ使用）
+ *   CC              1のCCアドレス（任意・カンマ区切り）
+ *   STAFF_EMAILS    担当者名→メールアドレスのJSON（例 {"山田":"yamada@example.com"}）
+ *                   2のCC・3の宛先に使用。未設定の場合、2はCCなし、3は送信対象なしとなる。
+ *   REPORT_APP_URL  日報カウンターの入力アプリURL（3の本文ボタンに使用。任意）
  *   SPREADSHEET_ID  対象スプレッドシートID（コンテナバインドでない場合のみ必須）
+ *
+ * 運用上の注意（2・3を有効にする前に確認すること）:
+ *   ・2は「未入力者」の名前が担当者全員に見える形で共有される。個人の状況を
+ *     社内に公開する運用になるため、文面のトーンと運用方針は事前に社内で
+ *     合意してから有効化すること。
+ *   ・STAFF_EMAILS は実在するメールアドレスの一覧であり、このリポジトリには
+ *     絶対に含めない（スクリプトプロパティ側でのみ管理する）。
  */
 
 var TZ = 'Asia/Tokyo';
@@ -348,6 +360,151 @@ function esc_(value) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+/* ===== 夜20:00：当日ぶんの入力状況を小林様へ（全担当者CC） ===== */
+
+/** 定期トリガーから呼ぶ本番用エントリポイント。 */
+function sendEveningSummaryMail() {
+  runEvening_(false);
+}
+
+/** 送信せずに文面をログ出力する確認用エントリポイント。 */
+function previewEveningSummaryMail() {
+  runEvening_(true);
+}
+
+function runEvening_(isPreview) {
+  var now = new Date();
+  var ymd = Utilities.formatDate(now, TZ, 'yyyy-MM-dd');
+
+  var ss = openSpreadsheet_();
+  var records = readRecords_(ss, [ymd]);
+  var staffList = readStaffList_(ss);
+  var subject = '【本日の日報】' + formatDateLabel_(ymd) + '分';
+  var html = buildEveningHtml_(ymd, records, staffList);
+
+  if (isPreview) {
+    Logger.log('件名: ' + subject);
+    Logger.log(html);
+    return;
+  }
+
+  var props = PropertiesService.getScriptProperties();
+  var recipient = props.getProperty('RECIPIENT');
+  if (!recipient) {
+    throw new Error('スクリプトプロパティ RECIPIENT が未設定です。');
+  }
+  var ccList = objectValues_(readStaffEmails_());
+  var options = { htmlBody: html, name: '営業日報' };
+  if (ccList.length > 0) {
+    options.cc = ccList.join(',');
+  }
+  MailApp.sendEmail(recipient, subject, htmlToPlainText_(html), options);
+  Logger.log('送信しました: ' + subject + ' → ' + recipient + '（CC ' + ccList.length + '名 / 入力 ' + records.length + '件）');
+}
+
+function buildEveningHtml_(ymd, records, staffList) {
+  var label = formatDateLabel_(ymd);
+  var out = [];
+  out.push('<div style="font-family:sans-serif;font-size:14px;line-height:1.7;color:#222">');
+  out.push('<p>小林様<br>お世話になっております。</p>');
+
+  if (records.length === 0) {
+    out.push('<p>' + esc_(label) + 'は、現時点で日報の入力がありません。</p>');
+  } else {
+    out.push('<p>' + esc_(label) + 'の日報入力状況をお知らせします（入力 ' + records.length + '件）。</p>');
+    out.push(buildTable_(records));
+    out.push(buildMemoList_(records));
+  }
+
+  var pending = pendingStaff_(records, staffList);
+  if (pending.length > 0) {
+    out.push('<p style="color:#b00"><b>本日まだ入力がない担当者</b>：' + esc_(pending.join('、')) + '<br>');
+    out.push('入力がない場合、本日の勤務実績が確認できませんので、必ずご入力をお願いいたします。</p>');
+  }
+
+  out.push('<p style="color:#666;font-size:12px;margin-top:24px">');
+  out.push('※ 数値は日報カウンターの<b>週単位の累計値</b>です（当日の増分ではありません）。<br>');
+  out.push('※ 日報の入力状況は、今後の増員・採用計画の参考にもさせていただきます。<br>');
+  out.push('※ 本メールは日報カウンターの入力内容を自動集計したものです。');
+  out.push('</p>');
+  out.push('</div>');
+  return out.join('');
+}
+
+/* ===== 朝9:30：担当者ひとりひとりへの入力リマインド ===== */
+
+/** 定期トリガーから呼ぶ本番用エントリポイント。 */
+function sendMorningReminderMail() {
+  runMorning_(false);
+}
+
+/** 送信せずに文面をログ出力する確認用エントリポイント。 */
+function previewMorningReminderMail() {
+  runMorning_(true);
+}
+
+function runMorning_(isPreview) {
+  var staffEmails = readStaffEmails_();
+  var names = Object.keys(staffEmails);
+  if (names.length === 0) {
+    Logger.log('STAFF_EMAILS が未設定のため、送信対象がありません。');
+    return;
+  }
+
+  var appUrl = PropertiesService.getScriptProperties().getProperty('REPORT_APP_URL') || '';
+  var subject = '【日報】本日もよろしくお願いします';
+
+  names.forEach(function (name) {
+    var html = buildMorningHtml_(name, appUrl);
+    if (isPreview) {
+      Logger.log(name + ' <' + staffEmails[name] + '> 宛て:');
+      Logger.log(html);
+      return;
+    }
+    MailApp.sendEmail(staffEmails[name], subject, htmlToPlainText_(html), { htmlBody: html, name: '営業日報' });
+  });
+
+  if (!isPreview) {
+    Logger.log('朝の送信をしました: ' + names.length + '名');
+  }
+}
+
+function buildMorningHtml_(name, appUrl) {
+  var out = [];
+  out.push('<div style="font-family:sans-serif;font-size:14px;line-height:1.7;color:#222">');
+  out.push('<p>' + esc_(name) + '様<br>おはようございます。今日も一日よろしくお願いいたします。</p>');
+  out.push('<p>本日の実績は、業務終了時に必ず日報カウンターへご入力ください。</p>');
+  if (appUrl) {
+    out.push('<p style="margin:20px 0">');
+    out.push('<a href="' + esc_(appUrl) + '" style="display:inline-block;background:#2a7de1;color:#fff;');
+    out.push('text-decoration:none;padding:10px 20px;border-radius:6px;font-weight:bold">日報を入力する</a>');
+    out.push('</p>');
+  }
+  out.push('<p style="color:#666;font-size:12px;margin-top:24px">※ 本メールは自動送信です。</p>');
+  out.push('</div>');
+  return out.join('');
+}
+
+/* ===== 共通ヘルパー ===== */
+
+function readStaffEmails_() {
+  var raw = PropertiesService.getScriptProperties().getProperty('STAFF_EMAILS');
+  if (!raw) {
+    return {};
+  }
+  try {
+    var parsed = JSON.parse(raw);
+    return (parsed && typeof parsed === 'object') ? parsed : {};
+  } catch (e) {
+    Logger.log('STAFF_EMAILS の解析に失敗しました: ' + raw);
+    return {};
+  }
+}
+
+function objectValues_(obj) {
+  return Object.keys(obj).map(function (k) { return obj[k]; });
 }
 
 function htmlToPlainText_(html) {
