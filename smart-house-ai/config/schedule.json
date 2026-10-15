@@ -1,0 +1,93 @@
+{
+  "_comment": "スケジュール設定。曜日・時刻・休日はこのファイルだけを直せば全スクリプトに反映されます。",
+  "timezone": "Asia/Tokyo",
+
+  "holiday_weekdays": ["wed", "sun"],
+  "_holiday_weekdays_note": "会社休日の曜日。mon/tue/wed/thu/fri/sat/sun で指定。ここを直すだけで営業日判定が変わります。",
+
+  "holidays": [],
+  "_holidays_note": "祝日・臨時休業日。 [\"2026-01-01\", \"2026-01-02\"] のように YYYY-MM-DD で追加。初期状態は空＝祝日判定なし（勝手に判定しません）。",
+
+  "extra_business_days": [],
+  "_extra_business_days_note": "休日曜日でも営業日として扱う日。[\"2026-05-03\"] のように指定。holidays より優先されます。",
+
+  "routines": [
+    {
+      "key": "morning_ceo_dashboard",
+      "name": "社長ダッシュボード",
+      "prompt": "prompts/01_morning_ceo_dashboard.md",
+      "period": "daily",
+      "output_name": "ceo_dashboard",
+      "time": "09:30",
+      "days": "business_day",
+      "group": "morning",
+      "enabled": true
+    },
+    {
+      "key": "inventory_watch",
+      "name": "在庫監視",
+      "prompt": "prompts/02_inventory_watch.md",
+      "period": "daily",
+      "output_name": "inventory_watch",
+      "time": "09:40",
+      "days": "business_day",
+      "group": "morning",
+      "enabled": true
+    },
+    {
+      "key": "sales_kpi",
+      "name": "営業KPI",
+      "prompt": "prompts/03_sales_kpi.md",
+      "period": "daily",
+      "output_name": "sales_kpi",
+      "time": "18:00",
+      "days": "business_day",
+      "group": "evening",
+      "enabled": true
+    },
+    {
+      "key": "deal_screening",
+      "name": "新規案件査定",
+      "prompt": "prompts/04_deal_screening.md",
+      "period": "daily",
+      "output_name": "deal_screening",
+      "time": "18:15",
+      "days": "business_day",
+      "group": "evening",
+      "enabled": true
+    },
+    {
+      "key": "weekly_management",
+      "name": "月曜経営会議レポート",
+      "prompt": "prompts/05_weekly_management.md",
+      "period": "weekly",
+      "output_name": "management_meeting",
+      "time": "10:00",
+      "days": "mon",
+      "group": "weekly",
+      "enabled": true
+    },
+    {
+      "key": "friday_review",
+      "name": "金曜週間レビュー",
+      "prompt": "prompts/06_friday_review.md",
+      "period": "weekly",
+      "output_name": "friday_review",
+      "time": "18:00",
+      "days": "fri",
+      "group": "weekly_friday",
+      "enabled": true
+    },
+    {
+      "key": "monthly_management",
+      "name": "月次経営分析",
+      "prompt": "prompts/07_monthly_management.md",
+      "period": "monthly",
+      "output_name": "monthly_management",
+      "time": "10:00",
+      "days": "day_of_month:1",
+      "group": "monthly",
+      "enabled": true
+    }
+  ]
+}
