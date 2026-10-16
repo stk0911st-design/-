@@ -10,9 +10,11 @@
  *   _raw     … 送られてきた生データ（キーごとに1行・上書き）
  *   日報明細  … 日報カウンターの内容を1件1行に展開したもの
  *   営業明細  … 営業目標管理の内容を1件1行に展開したもの
+ *   勤怠      … 出勤・退勤の打刻（Attendance.gs が追記）
  *
  * スクリプトプロパティ:
  *   TOKEN … 合言葉（必須）。アプリ側と同じ文字列にする。
+ *   ※ 勤怠通知の宛先設定は Attendance.gs の冒頭を参照。
  */
 
 var SHEET_LOG = '_log';
@@ -56,6 +58,8 @@ function doPost(e) {
       case 'raw':
         saveRaw_(ss, body);
         return json_({ ok: true, type: 'raw' });
+      case 'punch':
+        return json_(handlePunch_(ss, body));
       default:
         return json_({ ok: false, error: 'unknown type: ' + body.type });
     }
