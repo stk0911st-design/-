@@ -10,7 +10,7 @@
 ```js
 /* ===== 疎通テスト用。確認が終わったら消してください ===== */
 const SYNC_URL   = "ここにウェブアプリのURLを貼る";
-const SYNC_TOKEN = "ここに合言葉を貼る";
+const SYNC_TOKEN = "ここに合言葉を貼る";   // 画面のコードに入るため、アプリを見られる人には見える。公開範囲に注意
 (function pingSync(){
   try{
     fetch(SYNC_URL, {

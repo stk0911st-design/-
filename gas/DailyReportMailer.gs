@@ -9,6 +9,7 @@
  * スクリプトプロパティ:
  *   RECIPIENT       送信先メールアドレス（必須）
  *   CC              CCアドレス（任意・カンマ区切り）
+ *   GREETING_NAME   本文の宛名（任意）。「〇〇様」の〇〇の部分。未設定なら「ご担当者様」
  *   SPREADSHEET_ID  対象スプレッドシートID（コンテナバインドでない場合のみ必須）
  */
 
@@ -45,11 +46,12 @@ function run_(isPreview) {
     return;
   }
 
+  var props = PropertiesService.getScriptProperties();
   var ss = openSpreadsheet_();
   var records = readRecords_(ss, targetDates);
   var staffList = readStaffList_(ss);
   var subject = buildSubject_(targetDates);
-  var html = buildHtml_(targetDates, records, staffList);
+  var html = buildHtml_(targetDates, records, staffList, props.getProperty('GREETING_NAME'));
 
   if (isPreview) {
     Logger.log('件名: ' + subject);
@@ -57,7 +59,6 @@ function run_(isPreview) {
     return;
   }
 
-  var props = PropertiesService.getScriptProperties();
   var recipient = props.getProperty('RECIPIENT');
   if (!recipient) {
     throw new Error('スクリプトプロパティ RECIPIENT が未設定です。');
@@ -238,11 +239,11 @@ function formatDateLabel_(ymd) {
   return parts[0] + '年' + Number(parts[1]) + '月' + Number(parts[2]) + '日(' + wd + ')';
 }
 
-function buildHtml_(targetDates, records, staffList) {
+function buildHtml_(targetDates, records, staffList, greetingName) {
   var label = formatDateRangeLabel_(targetDates);
   var out = [];
   out.push('<div style="font-family:sans-serif;font-size:14px;line-height:1.7;color:#222">');
-  out.push('<p>小林様<br>お世話になっております。</p>');
+  out.push('<p>' + esc_(greetingName || 'ご担当者') + '様<br>お世話になっております。</p>');
 
   if (records.length === 0) {
     out.push('<p>' + esc_(label) + 'は、日報の入力がありませんでした。</p>');
