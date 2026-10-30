@@ -17,6 +17,9 @@
  *   previewRealEstateTop3()        送信せずに下書きを作成して内容を確認する
  *   sendRealEstateTop3()           集計してメール送信する（トリガーから呼ばれる）
  *   setupRealEstateTop3Trigger()   毎日21時のトリガーを設定する
+ *
+ * 送信後は同じスプレッドシートの「配信履歴」シートに結果を追記します。
+ * スクリプトプロパティ RE_TOP3_SLACK_WEBHOOK を設定すると Slack にも投稿します。
  */
 
 // ---- 設定（スクリプトプロパティのキー） --------------------------------
@@ -26,9 +29,12 @@ var RE_PROP_MIN_VOLUME = 'RE_TOP3_MIN_VOLUME'; // 出来高の下限。省略時
 var RE_PROP_LAST_SENT = 'RE_TOP3_LAST_SENT_DATE'; // 最後に送信した取引日。二重送信の防止に使う
 var RE_PROP_SPREADSHEET_ID = 'RE_TOP3_SPREADSHEET_ID'; // 銘柄マスタを置くスプレッドシートのID。
                                                        // スプレッドシートに紐付けたスクリプトなら不要
+var RE_PROP_SLACK_WEBHOOK = 'RE_TOP3_SLACK_WEBHOOK';   // Slack の Incoming Webhook URL。
+                                                       // 設定するとTOP3をSlackにも投稿する。省略可
 
 // ---- 定数 --------------------------------------------------------------
 var RE_SHEET_UNIVERSE = '銘柄マスタ';
+var RE_SHEET_HISTORY = '配信履歴';
 var RE_TOP_N = 3;
 var RE_TZ = 'Asia/Tokyo';
 var RE_FETCH_BATCH = 20; // UrlFetchApp.fetchAll の1回あたりの件数
@@ -85,6 +91,23 @@ function sendRealEstateTop3() {
 
   GmailApp.sendEmail(to, report.subject, report.textBody, options);
   props.setProperty(RE_PROP_LAST_SENT, report.dataDate);
+
+  // 記録と通知は送信の後。ここで失敗してもメール送信は成立しているため、
+  // 例外は握ってログに残すだけにする。
+  var recorded = false;
+  try {
+    recorded = recordHistory_(report.dataDate, report.top);
+  } catch (e) {
+    Logger.log('配信履歴への追記に失敗しました: ' + e);
+  }
+  if (recorded) {
+    // 追記できたときだけ投稿する。重複でスキップした日に二重投稿しないため。
+    try {
+      postToSlack_(report.dataDate, report.top);
+    } catch (e) {
+      Logger.log('Slackへの投稿に失敗しました: ' + e);
+    }
+  }
 }
 
 /** 送信せずにGmailの下書きを作成する（内容確認用）。 */
@@ -183,6 +206,7 @@ function buildRealEstateTop3_(opts) {
 
   return {
     dataDate: dataDate,
+    top: top,
     subject: buildSubject_(dataDate, top),
     textBody: buildTextBody_(top, summary),
     htmlBody: buildHtmlBody_(top, summary)
@@ -638,6 +662,84 @@ function writeUniverse_(rows, isSeed) {
   sh.getRange('E1').setValue(isSeed ? 'SEED' : 'JPX');
   sh.hideColumns(5);
   sh.setFrozenRows(1);
+}
+
+// =======================================================================
+// 記録とSlack投稿
+// =======================================================================
+
+/**
+ * 「配信履歴」シートに当日の結果を追記する。
+ * シートが無ければ作る。同じ取引日の行が既にあれば追記しない。
+ * 追記したら true、重複で追記しなかったら false を返す。
+ */
+function recordHistory_(dataDate, top) {
+  var ss = getSpreadsheet_();
+  var sh = ss.getSheetByName(RE_SHEET_HISTORY);
+  if (!sh) {
+    sh = ss.insertSheet(RE_SHEET_HISTORY);
+    sh.getRange(1, 1, 1, 8)
+      .setValues([['取引日', '順位', '銘柄名', 'コード', '終値', '前日比', '騰落率', '記録日時']])
+      .setFontWeight('bold');
+    sh.setFrozenRows(1);
+  }
+
+  if (sh.getLastRow() >= 2) {
+    var dates = sh.getRange(2, 1, sh.getLastRow() - 1, 1).getDisplayValues();
+    var already = dates.some(function (r) { return String(r[0]).trim() === dataDate; });
+    if (already) {
+      Logger.log('配信履歴に取引日 ' + dataDate + ' の行が既にあるため追記しません。');
+      return false;
+    }
+  }
+
+  var now = Utilities.formatDate(new Date(), RE_TZ, 'yyyy-MM-dd HH:mm');
+  var rows;
+  if (!top.length) {
+    rows = [[dataDate, '-', '値上がりした銘柄なし', '', '', '', '', now]];
+  } else {
+    rows = top.map(function (s, i) {
+      return [dataDate, i + 1, s.name, s.code, s.price, s.diff, s.rate / 100, now];
+    });
+  }
+
+  sh.getRange(sh.getLastRow() + 1, 1, rows.length, 8).setValues(rows);
+  if (top.length) {
+    sh.getRange(sh.getLastRow() - rows.length + 1, 7, rows.length, 1).setNumberFormat('+0.00%;-0.00%');
+  }
+  Logger.log('配信履歴に ' + rows.length + '行を追記しました（取引日 ' + dataDate + '）。');
+  return true;
+}
+
+/**
+ * Slack の Incoming Webhook にTOP3を投稿する。
+ * RE_TOP3_SLACK_WEBHOOK が未設定なら何もしない。
+ */
+function postToSlack_(dataDate, top) {
+  var url = (PropertiesService.getScriptProperties()
+    .getProperty(RE_PROP_SLACK_WEBHOOK) || '').trim();
+  if (!url) return;
+
+  var lines = ['*不動産株 値上がり率TOP3*　' + formatDateLabel_(dataDate)];
+  if (!top.length) {
+    lines.push('本日は値上がりした銘柄がありませんでした。');
+  } else {
+    top.forEach(function (s, i) {
+      lines.push((i + 1) + '位　' + s.name + '（' + s.code + '）　' + formatRate_(s.rate) +
+        '　終値 ' + formatPrice_(s.price) + '円（前日比 ' + formatDiff_(s.diff) + '円）');
+    });
+  }
+
+  var res = UrlFetchApp.fetch(url, {
+    method: 'post',
+    contentType: 'application/json',
+    payload: JSON.stringify({ text: lines.join('\n') }),
+    muteHttpExceptions: true
+  });
+  if (res.getResponseCode() !== 200) {
+    throw new Error('Slackが ' + res.getResponseCode() + ' を返しました: ' + res.getContentText());
+  }
+  Logger.log('Slackに投稿しました。');
 }
 
 // =======================================================================
