@@ -9,11 +9,13 @@
 
 ```
 docs/routine-prompt.md      Claude ルーティン（平日 8:00 JST 起動）の設定とプロンプト
+docs/jimu-pipeline.md       事務パイプライン（毎晩の事務まとめPDF・期限リマインド・書類チェック）の仕様
 docs/step1-receiver-setup.md 受け皿ウェブアプリの導入手順
 docs/step2-connection-test.md 入力アプリ→受け皿の疎通テスト手順
 gas/DailyReportMailer.gs    まとめメール送信（Apps Script 版・恒久運用用）
 gas/Receiver.gs             入力アプリからの POST を受けてスプレッドシートに書く受け皿
 gas/README.md               DailyReportMailer の導入手順
+tools/html-to-pdf.js        HTML を A4 の PDF にする（Chromium + Playwright）
 ```
 
 ## 絶対に守ること
