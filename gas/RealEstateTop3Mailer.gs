@@ -18,6 +18,11 @@
  *   sendRealEstateTop3()           集計してメール送信する（トリガーから呼ばれる）
  *   setupRealEstateTop3Trigger()   毎日21時のトリガーを設定する
  *
+ * 週次（火曜）版:
+ *   previewWeeklyTop3()            週間の結果を下書きで確認する
+ *   sendWeeklyTop3()               週間値上がり率TOP3を送信する
+ *   setupWeeklyTop3Trigger()       毎週火曜21時のトリガーを設定する
+ *
  * 送信後は同じスプレッドシートの「配信履歴」シートに結果を追記します。
  * スクリプトプロパティ RE_TOP3_SLACK_WEBHOOK を設定すると Slack にも投稿します。
  */
@@ -29,12 +34,14 @@ var RE_PROP_MIN_VOLUME = 'RE_TOP3_MIN_VOLUME'; // 出来高の下限。省略時
 var RE_PROP_LAST_SENT = 'RE_TOP3_LAST_SENT_DATE'; // 最後に送信した取引日。二重送信の防止に使う
 var RE_PROP_SPREADSHEET_ID = 'RE_TOP3_SPREADSHEET_ID'; // 銘柄マスタを置くスプレッドシートのID。
                                                        // スプレッドシートに紐付けたスクリプトなら不要
+var RE_PROP_LAST_WEEKLY = 'RE_TOP3_LAST_WEEKLY_SENT'; // 最後に送信した週次の基準日
 var RE_PROP_SLACK_WEBHOOK = 'RE_TOP3_SLACK_WEBHOOK';   // Slack の Incoming Webhook URL。
                                                        // 設定するとTOP3をSlackにも投稿する。省略可
 
 // ---- 定数 --------------------------------------------------------------
 var RE_SHEET_UNIVERSE = '銘柄マスタ';
 var RE_SHEET_HISTORY = '配信履歴';
+var RE_SHEET_WEEKLY = '週次履歴';
 var RE_TOP_N = 3;
 var RE_TZ = 'Asia/Tokyo';
 var RE_FETCH_BATCH = 20; // UrlFetchApp.fetchAll の1回あたりの件数
@@ -276,14 +283,18 @@ function fetchMarketData_(codes) {
     var q = byCode[code];
     // 最終取引日のデータがない銘柄（売買停止・上場廃止など）は空にして集計から外す
     if (!q || q.date !== latest) {
-      return { code: code, name: '', price: '', prevClose: '', volume: '' };
+      return { code: code, name: '', price: '', prevClose: '', volume: '',
+        weekAgoClose: '', weekAgoDate: '' };
     }
+    var weekAgo = closeOnOrBefore_(q.series, addDays_(latest, -7));
     return {
       code: code,
       name: '',
       price: q.close,
       prevClose: q.prevClose,
-      volume: (q.volume === null || q.volume === undefined) ? '' : q.volume
+      volume: (q.volume === null || q.volume === undefined) ? '' : q.volume,
+      weekAgoClose: weekAgo ? weekAgo.close : '',
+      weekAgoDate: weekAgo ? weekAgo.date : ''
     };
   });
 
@@ -341,6 +352,29 @@ function fetchInBatches_(codes, buildRequest, parser, sourceName) {
   return out;
 }
 
+/** yyyy-MM-dd に日数を足した yyyy-MM-dd を返す。 */
+function addDays_(dateStr, days) {
+  var p = dateStr.split('-');
+  var d = new Date(Date.UTC(Number(p[0]), Number(p[1]) - 1, Number(p[2])));
+  d.setUTCDate(d.getUTCDate() + days);
+  var pad = function (n) { return (n < 10 ? '0' : '') + n; };
+  return d.getUTCFullYear() + '-' + pad(d.getUTCMonth() + 1) + '-' + pad(d.getUTCDate());
+}
+
+/**
+ * 日足系列（日付の昇順）から、指定日以前で最も新しい営業日の終値を返す。
+ * 該当が無ければ null。休場日をまたいでも1週間前の水準を取れる。
+ */
+function closeOnOrBefore_(series, dateStr) {
+  if (!series || !series.length) return null;
+  var found = null;
+  for (var i = 0; i < series.length; i++) {
+    if (series[i].date <= dateStr) found = series[i];
+    else break;
+  }
+  return found;
+}
+
 /**
  * stooq の日足CSVを解釈する。
  * 形式: Date,Open,High,Low,Close,Volume（日付の昇順）
@@ -351,19 +385,26 @@ function parseStooqCsv_(text) {
   var lines = text.replace(/\r/g, '').split('\n').filter(function (l) { return l.trim(); });
   if (lines.length < 3) return null; // ヘッダー＋2営業日分が最低限必要
 
+  var series = [];
+  for (var i = 1; i < lines.length; i++) {
+    var f = lines[i].split(',');
+    var c = Number(f[4]);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(f[0]) || !isFinite(c) || c <= 0) continue;
+    series.push({ date: f[0], close: c });
+  }
+  if (series.length < 2) return null;
+
   var last = lines[lines.length - 1].split(',');
-  var prev = lines[lines.length - 2].split(',');
-  var close = Number(last[4]);
-  var prevClose = Number(prev[4]);
   var volume = Number(last[5]);
-  if (!isFinite(close) || !isFinite(prevClose) || close <= 0 || prevClose <= 0) return null;
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(last[0])) return null;
+  var tail = series[series.length - 1];
+  if (tail.date !== last[0]) return null; // 最終行が壊れている
 
   return {
-    date: last[0],
-    close: close,
-    prevClose: prevClose,
-    volume: isFinite(volume) ? volume : null
+    date: tail.date,
+    close: tail.close,
+    prevClose: series[series.length - 2].close,
+    volume: isFinite(volume) ? volume : null,
+    series: series
   };
 }
 
@@ -390,15 +431,22 @@ function parseYahooChart_(text) {
   }
   if (filled.length < 2) return null;
 
+  var series = filled.map(function (i) {
+    return {
+      date: Utilities.formatDate(new Date(result.timestamp[i] * 1000), RE_TZ, 'yyyy-MM-dd'),
+      close: Number(closes[i])
+    };
+  });
+
   var last = filled[filled.length - 1];
-  var prev = filled[filled.length - 2];
   var volume = volumes[last];
 
   return {
-    date: Utilities.formatDate(new Date(result.timestamp[last] * 1000), RE_TZ, 'yyyy-MM-dd'),
-    close: Number(closes[last]),
-    prevClose: Number(closes[prev]),
-    volume: (volume === null || volume === undefined) ? null : Number(volume)
+    date: series[series.length - 1].date,
+    close: series[series.length - 1].close,
+    prevClose: series[series.length - 2].close,
+    volume: (volume === null || volume === undefined) ? null : Number(volume),
+    series: series
   };
 }
 
@@ -665,6 +713,253 @@ function writeUniverse_(rows, isSeed) {
 }
 
 // =======================================================================
+// 週次（週間値上がり率TOP3）
+// =======================================================================
+
+/**
+ * 週間値上がり率の上位を集計する。
+ * 直近取引日の終値と、その7日前以前で最も新しい営業日の終値を比べる。
+ * 休場をまたいでも「おおむね1週間の騰落率」になる。
+ * 送信すべきでない場合は null を返す。
+ */
+function buildWeeklyTop3_(opts) {
+  opts = opts || {};
+  var universe = readUniverse_();
+  if (!universe.rows.length) {
+    Logger.log('「' + RE_SHEET_UNIVERSE + '」シートが無いため、初期リストで作成します。');
+    initUniverseSheet();
+    universe = readUniverse_();
+  }
+
+  var market = fetchMarketData_(universe.rows.map(function (r) { return r.code; }));
+  var dataDate = market.latestTradingDate;
+  if (!dataDate) {
+    Logger.log('最終取引日を判定できませんでした。処理を中止します。');
+    return null;
+  }
+
+  var props = PropertiesService.getScriptProperties();
+  if (!opts.ignoreLastSent && dataDate === props.getProperty(RE_PROP_LAST_WEEKLY)) {
+    Logger.log('基準日 ' + dataDate + ' の週次はすでに送信済みです。');
+    return null;
+  }
+
+  var minVolume = Number(props.getProperty(RE_PROP_MIN_VOLUME) || 0);
+  var nameByCode = {};
+  universe.rows.forEach(function (r) { nameByCode[r.code] = r.name; });
+
+  var evaluated = [];
+  var skipped = 0;
+  var baseDate = '';
+  market.quotes.forEach(function (q) {
+    var price = Number(q.price);
+    var base = Number(q.weekAgoClose);
+    var volume = q.volume === '' ? null : Number(q.volume);
+    if (!isFinite(price) || !isFinite(base) || price <= 0 || base <= 0) { skipped++; return; }
+    if (volume !== null && isFinite(volume) && volume <= minVolume) { skipped++; return; }
+    if (!baseDate && q.weekAgoDate) baseDate = q.weekAgoDate;
+    evaluated.push({
+      code: q.code,
+      name: nameByCode[q.code] || q.code,
+      price: price,
+      prevClose: base,
+      diff: price - base,
+      rate: (price - base) / base * 100
+    });
+  });
+
+  if (!evaluated.length) {
+    Logger.log('週間騰落率を計算できた銘柄がありませんでした。');
+    return null;
+  }
+
+  evaluated.sort(function (a, b) { return b.rate - a.rate; });
+  var gainers = evaluated.filter(function (x) { return x.rate > 0; });
+  var top = gainers.slice(0, RE_TOP_N);
+
+  return {
+    dataDate: dataDate,
+    baseDate: baseDate,
+    top: top,
+    subject: buildWeeklySubject_(dataDate, top),
+    textBody: buildWeeklyTextBody_(top, {
+      dataDate: dataDate, baseDate: baseDate,
+      universeCount: universe.rows.length, evaluatedCount: evaluated.length,
+      skippedCount: skipped, gainerCount: gainers.length,
+      best: evaluated[0], minVolume: minVolume, isSeedUniverse: universe.isSeed
+    })
+  };
+}
+
+function buildWeeklySubject_(dataDate, top) {
+  var label = formatDateLabel_(dataDate);
+  if (!top.length) return '【不動産株 週間値上がり率TOP3】' + label + '時点　値上がりした銘柄はありません';
+  return '【不動産株 週間値上がり率TOP3】' + label + '時点　' +
+    top[0].name + ' ' + formatRate_(top[0].rate);
+}
+
+function buildWeeklyTextBody_(top, summary) {
+  var lines = [];
+  lines.push('小林様');
+  lines.push('');
+  lines.push('お世話になっております。');
+  lines.push('東証「' + RE_TARGET_SECTOR + '」上場銘柄の、週間値上がり率の上位' + RE_TOP_N + '社をお届けします。');
+  lines.push('');
+  lines.push('比較期間： ' + formatDateLabel_(summary.baseDate) + ' の終値 → ' +
+    formatDateLabel_(summary.dataDate) + ' の終値');
+  lines.push('');
+
+  if (!top.length) {
+    lines.push('この期間に値上がりした銘柄はありませんでした。');
+    if (summary.best) {
+      lines.push('');
+      lines.push('（参考）下落率が最も小さかった銘柄');
+      lines.push('　　' + summary.best.name + '（' + summary.best.code + '）　' +
+        formatRate_(summary.best.rate));
+    }
+    lines.push('');
+  } else {
+    if (top.length < RE_TOP_N) {
+      lines.push('※ この期間に値上がりした銘柄は' + summary.gainerCount + '社のみでした。');
+      lines.push('');
+    }
+    top.forEach(function (x, i) {
+      lines.push((i + 1) + '位　' + x.name + '（' + x.code + '）　' + formatRate_(x.rate));
+      lines.push('　　' + formatPrice_(x.prevClose) + '円 → ' + formatPrice_(x.price) + '円' +
+        '（' + formatDiff_(x.diff) + '円）');
+      lines.push('');
+    });
+  }
+
+  lines.push('■ 集計条件');
+  lines.push('・対象：東証33業種区分「' + RE_TARGET_SECTOR + '」の上場銘柄');
+  lines.push('・対象銘柄数：' + summary.universeCount + '社' +
+    '（うち計算できたもの ' + summary.evaluatedCount + '社' +
+    (summary.skippedCount ? ' / 除外 ' + summary.skippedCount + '社' : '') + '）');
+  lines.push('・指標：直近取引日の終値 ÷ その約1週間前の終値 − 1');
+  lines.push('・除外：出来高が' + summary.minVolume + '以下の銘柄、株価を取得できなかった銘柄');
+  lines.push('・出所：stooq（取得できない銘柄は Yahoo Finance で補完）');
+  if (summary.isSeedUniverse) {
+    lines.push('');
+    lines.push('※ 銘柄マスタが初期リストのままです。importUniverseFromJpx() を実行すると');
+    lines.push('　 東証「' + RE_TARGET_SECTOR + '」の全銘柄が対象になります。');
+  }
+  lines.push('');
+  lines.push('※ 本メールは自動送信です。投資判断はご自身の責任でお願いいたします。');
+  return lines.join('\n');
+}
+
+/** 週間値上がり率TOP3を送信する（毎週火曜のトリガーの入口）。 */
+function sendWeeklyTop3() {
+  var props = PropertiesService.getScriptProperties();
+  var to = (props.getProperty(RE_PROP_RECIPIENT) || '').trim();
+  if (!to) {
+    throw new Error(
+      'スクリプトプロパティ ' + RE_PROP_RECIPIENT + ' に宛先メールアドレスを設定してください。');
+  }
+
+  var report = buildWeeklyTop3_();
+  if (!report) return;
+
+  var options = {};
+  var cc = (props.getProperty(RE_PROP_CC) || '').trim();
+  if (cc) options.cc = cc;
+
+  GmailApp.sendEmail(to, report.subject, report.textBody, options);
+  props.setProperty(RE_PROP_LAST_WEEKLY, report.dataDate);
+
+  var recorded = false;
+  try {
+    recorded = recordWeeklyHistory_(report);
+  } catch (e) {
+    Logger.log('週次履歴への追記に失敗しました: ' + e);
+  }
+  if (recorded) {
+    try {
+      postWeeklyToSlack_(report);
+    } catch (e) {
+      Logger.log('Slackへの投稿に失敗しました: ' + e);
+    }
+  }
+}
+
+/** 送信せずにGmailの下書きを作る（週次の内容確認用）。 */
+function previewWeeklyTop3() {
+  var to = (PropertiesService.getScriptProperties().getProperty(RE_PROP_RECIPIENT) || '').trim();
+  var report = buildWeeklyTop3_({ ignoreLastSent: true });
+  if (!report) {
+    Logger.log('週間の集計ができませんでした。');
+    return;
+  }
+  GmailApp.createDraft(to, '[下書き] ' + report.subject, report.textBody);
+  Logger.log(report.textBody);
+}
+
+/** 「週次履歴」シートに追記する。同じ基準日があれば追記しない。 */
+function recordWeeklyHistory_(report) {
+  var ss = getSpreadsheet_();
+  var sh = ss.getSheetByName(RE_SHEET_WEEKLY);
+  if (!sh) {
+    sh = ss.insertSheet(RE_SHEET_WEEKLY);
+    sh.getRange(1, 1, 1, 8)
+      .setValues([['基準日', '比較元の日', '順位', '銘柄名', 'コード', '週間騰落率', '終値', '記録日時']])
+      .setFontWeight('bold');
+    sh.setFrozenRows(1);
+  }
+
+  if (sh.getLastRow() >= 2) {
+    var dates = sh.getRange(2, 1, sh.getLastRow() - 1, 1).getDisplayValues();
+    if (dates.some(function (r) { return String(r[0]).trim() === report.dataDate; })) {
+      Logger.log('週次履歴に基準日 ' + report.dataDate + ' の行が既にあるため追記しません。');
+      return false;
+    }
+  }
+
+  var now = Utilities.formatDate(new Date(), RE_TZ, 'yyyy-MM-dd HH:mm');
+  var rows = report.top.length
+    ? report.top.map(function (x, i) {
+        return [report.dataDate, report.baseDate, i + 1, x.name, x.code, x.rate / 100, x.price, now];
+      })
+    : [[report.dataDate, report.baseDate, '-', '値上がりした銘柄なし', '', '', '', now]];
+
+  sh.getRange(sh.getLastRow() + 1, 1, rows.length, 8).setValues(rows);
+  if (report.top.length) {
+    sh.getRange(sh.getLastRow() - rows.length + 1, 6, rows.length, 1)
+      .setNumberFormat('+0.00%;-0.00%');
+  }
+  Logger.log('週次履歴に ' + rows.length + '行を追記しました。');
+  return true;
+}
+
+/** 週間TOP3をSlackに投稿する。Webhook未設定なら何もしない。 */
+function postWeeklyToSlack_(report) {
+  var url = (PropertiesService.getScriptProperties()
+    .getProperty(RE_PROP_SLACK_WEBHOOK) || '').trim();
+  if (!url) return;
+
+  var lines = ['*不動産株 週間値上がり率TOP3*'];
+  lines.push(formatDateLabel_(report.baseDate) + ' → ' + formatDateLabel_(report.dataDate));
+  if (!report.top.length) {
+    lines.push('この期間に値上がりした銘柄はありませんでした。');
+  } else {
+    report.top.forEach(function (x, i) {
+      lines.push((i + 1) + '位　' + x.name + '（' + x.code + '）　' + formatRate_(x.rate) +
+        '　' + formatPrice_(x.prevClose) + '円 → ' + formatPrice_(x.price) + '円');
+    });
+  }
+
+  var res = UrlFetchApp.fetch(url, {
+    method: 'post',
+    contentType: 'application/json',
+    payload: JSON.stringify({ text: lines.join('\n') }),
+    muteHttpExceptions: true
+  });
+  if (res.getResponseCode() !== 200) {
+    throw new Error('Slackが ' + res.getResponseCode() + ' を返しました: ' + res.getContentText());
+  }
+}
+
+// =======================================================================
 // 記録とSlack投稿
 // =======================================================================
 
@@ -765,4 +1060,19 @@ function setupRealEstateTop3Trigger() {
       .create();
   });
   Logger.log('毎日21時・22時（JST）のトリガーを設定しました。');
+}
+
+/** 毎週火曜21時（JST）の週次トリガーを設定する。 */
+function setupWeeklyTop3Trigger() {
+  ScriptApp.getProjectTriggers().forEach(function (t) {
+    if (t.getHandlerFunction() === 'sendWeeklyTop3') ScriptApp.deleteTrigger(t);
+  });
+  ScriptApp.newTrigger('sendWeeklyTop3')
+    .timeBased()
+    .onWeekDay(ScriptApp.WeekDay.TUESDAY)
+    .atHour(21)
+    .nearMinute(0)
+    .inTimezone(RE_TZ)
+    .create();
+  Logger.log('毎週火曜21時（JST）の週次トリガーを設定しました。');
 }

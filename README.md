@@ -123,4 +123,17 @@ Yahoo Finance で補います。APIキーは不要で、Claude のセッショ�
 スクリプトプロパティに Slack の Incoming Webhook URL を設定すると、Slack にも投稿します。
 記録・投稿も Apps Script 側で完結するため、Claude のセッション状態には依存しません。
 
+## 週次版（毎週火曜）
+
+同じスクリプトに、週間の値上がり率TOP3を毎週火曜に配信する関数も入っています。
+
+| 項目 | 内容 |
+| --- | --- |
+| 指標 | 直近取引日の終値 ÷ その約1週間前の終値 − 1 |
+| 抽出 | 値上がりした銘柄のみを対象に、上位3社 |
+| 配信 | 毎週火曜 21時（JST） |
+| 記録 | 「週次履歴」シートに追記。Slack Webhook 設定時は Slack にも投稿 |
+
+`previewWeeklyTop3` で下書き確認 → `setupWeeklyTop3Trigger` でトリガー設定、の順です。
+
 導入手順は `docs/real-estate-top3-setup.md` を参照。
