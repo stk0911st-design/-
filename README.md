@@ -131,9 +131,12 @@ Yahoo Finance で補います。APIキーは不要で、Claude のセッショ�
 | --- | --- |
 | 指標 | 直近取引日の終値 ÷ その約1週間前の終値 − 1 |
 | 抽出 | 値上がりした銘柄のみを対象に、上位3社 |
-| 配信 | 毎週火曜 21時（JST） |
+| 配信 | 既定は毎週月曜 21時（JST）。曜日は変更可 |
 | 記録 | 「週次履歴」シートに追記。Slack Webhook 設定時は Slack にも投稿 |
 
 `previewWeeklyTop3` で下書き確認 → `setupWeeklyTop3Trigger` でトリガー設定、の順です。
+
+この数字を使って、毎週火曜の朝に社内向けの週報「今週の不動産ニュース」を
+Slack に投稿する運用を組んでいます。手順は `docs/weekly-news-routine.md` を参照。
 
 導入手順は `docs/real-estate-top3-setup.md` を参照。

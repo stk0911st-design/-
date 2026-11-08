@@ -1062,17 +1062,23 @@ function setupRealEstateTop3Trigger() {
   Logger.log('毎日21時・22時（JST）のトリガーを設定しました。');
 }
 
-/** 毎週火曜21時（JST）の週次トリガーを設定する。 */
-function setupWeeklyTop3Trigger() {
+/**
+ * 週次トリガーを設定する。既定は毎週月曜21時（JST）。
+ *
+ * 火曜の朝に社内向けの週報をまとめる運用のため、その前夜に数字を出しておく。
+ * 別の曜日にしたい場合は weekDay に ScriptApp.WeekDay の値を渡す。
+ */
+function setupWeeklyTop3Trigger(weekDay) {
   ScriptApp.getProjectTriggers().forEach(function (t) {
     if (t.getHandlerFunction() === 'sendWeeklyTop3') ScriptApp.deleteTrigger(t);
   });
+  var day = weekDay || ScriptApp.WeekDay.MONDAY;
   ScriptApp.newTrigger('sendWeeklyTop3')
     .timeBased()
-    .onWeekDay(ScriptApp.WeekDay.TUESDAY)
+    .onWeekDay(day)
     .atHour(21)
     .nearMinute(0)
     .inTimezone(RE_TZ)
     .create();
-  Logger.log('毎週火曜21時（JST）の週次トリガーを設定しました。');
+  Logger.log('週次トリガーを設定しました（21時台 JST）。');
 }
