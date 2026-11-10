@@ -26,11 +26,14 @@ FONT = "/usr/share/fonts/opentype/ipafont-gothic/ipagp.ttf"
 if os.environ.get("BROKER_PDF_CID") == "1":
     from reportlab.pdfbase.cidfonts import UnicodeCIDFont
     pdfmetrics.registerFont(UnicodeCIDFont("HeiseiKakuGo-W5"))
-    pdfmetrics.registerFontFamily("JP", normal="HeiseiKakuGo-W5")
     JPNAME = "HeiseiKakuGo-W5"
+    # HeiseiKakuGo-W5 は IPAPGothic より字幅が最大11%広く、そのままだと枠からはみ出す。
+    # 枠の位置は変えずに文字だけ1割縮めて、どちらの版も同じ体裁で収まるようにする。
+    SCALE = 0.90
 else:
     pdfmetrics.registerFont(TTFont("JP", FONT))
     JPNAME = "JP"
+    SCALE = 1.0
 
 W, H = landscape(A3)                 # 1190.55 x 841.89 pt
 M = 38                               # 余白
@@ -54,6 +57,7 @@ MONTHS = [("2月", 2.1, 5458), ("3月", None, None), ("4月", None, None),
 
 def t(c, x, y, s, size=9.5, color=INK, align="l", bold=False, leading=None):
     """IPAゴシックに太字の字形が無いので、太字はごく僅かにずらして重ね描きする。"""
+    size *= SCALE
     c.setFillColor(color)
     c.setFont(JPNAME, size)
     w = c.stringWidth(s, JPNAME, size)
@@ -68,17 +72,18 @@ def t(c, x, y, s, size=9.5, color=INK, align="l", bold=False, leading=None):
 
 def wrap(c, x, y, s, size, width, color=INK, leading=None, bold=False):
     """日本語をぶら下げなしで折り返す。戻り値は使った高さ。"""
+    size *= SCALE
     lead = leading or size * 1.65
     line, yy = "", y
     for ch in s:
         if ch == "\n":
-            t(c, x, yy, line, size, color, bold=bold); line = ""; yy -= lead; continue
+            t(c, x, yy, line, size / SCALE, color, bold=bold); line = ""; yy -= lead; continue
         if c.stringWidth(line + ch, JPNAME, size) > width and line:
-            t(c, x, yy, line, size, color, bold=bold); line = ch; yy -= lead
+            t(c, x, yy, line, size / SCALE, color, bold=bold); line = ch; yy -= lead
         else:
             line += ch
     if line:
-        t(c, x, yy, line, size, color, bold=bold); yy -= lead
+        t(c, x, yy, line, size / SCALE, color, bold=bold); yy -= lead
     return y - yy
 
 
