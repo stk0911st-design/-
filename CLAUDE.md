@@ -9,6 +9,7 @@
 
 ```
 docs/routine-prompt.md      Claude ルーティン（平日 8:00 JST 起動）の設定とプロンプト
+docs/mail-triage-routine.md 受信メールの AI 仕分け・返信下書き（Claude ルーティン、送信はしない）
 docs/step1-receiver-setup.md 受け皿ウェブアプリの導入手順
 docs/step2-connection-test.md 入力アプリ→受け皿の疎通テスト手順
 gas/DailyReportMailer.gs    まとめメール送信（Apps Script 版・恒久運用用）
