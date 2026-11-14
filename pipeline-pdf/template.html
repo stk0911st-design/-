@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>営業パイプライン</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+/*
+  営業パイプライン（毎晩の PDF）ひな形。
+  データは render.js が window.DATA に入れる。社内の実データはこのファイルに書かない。
+  A4 縦・2ページ：1ページ目＝みんなの進みと明日へ／2ページ目＝今日の「ありがとう」。
+*/
+:root {
+  --deep: #0f6b4c;
+  --green: #16a36d;
+  --mint: #7cd4a7;
+  --pale: #e5f4ec;
+  --ground: #f5faf7;
+  --ink: #1d2b24;
+  --muted: #5a6b62;
+  --line: #d3e8dc;
+  --sun: #f4c542;
+  --coral: #f08a6c;
+  --f-head: "Zen Maru Gothic", "Noto Sans JP", "IPAPGothic", "IPAGothic", sans-serif;
+  --f-body: "Noto Sans JP", "IPAPGothic", "IPAGothic", sans-serif;
+}
+@page { size: A4; margin: 0; }
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--ground); color: var(--ink); font-family: var(--f-body); font-size: 10.5pt; line-height: 1.6; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.page { width: 210mm; height: 297mm; position: relative; overflow: hidden; page-break-after: always; display: flex; flex-direction: column; }
+.page:last-child { page-break-after: auto; }
+.hero { background: var(--deep); color: #fff; padding: 12mm 14mm 9mm; position: relative; overflow: hidden; }
+.hero::before { content: ""; position: absolute; right: -22mm; top: -28mm; width: 70mm; height: 70mm; border-radius: 50%; background: var(--green); }
+.hero::after { content: ""; position: absolute; right: 26mm; top: 20mm; width: 18mm; height: 18mm; border-radius: 50%; background: var(--mint); }
+.hero .brand { font-size: 9pt; letter-spacing: .2em; opacity: .85; position: relative; }
+.hero h1 { font-family: var(--f-head); font-size: 22pt; margin: 2mm 0 1mm; position: relative; font-weight: 700; }
+.hero p { margin: 0; font-size: 10pt; opacity: .92; position: relative; }
+.body { flex: 1; padding: 7mm 14mm 0; display: flex; flex-direction: column; gap: 5mm; }
+.card { background: #fff; border: 1px solid var(--line); border-radius: 4mm; padding: 5mm 6mm; }
+.card h2 { font-family: var(--f-head); font-size: 12.5pt; margin: 0 0 3mm; color: var(--deep); display: flex; align-items: center; gap: 2.5mm; }
+.card h2::before { content: ""; width: 3.2mm; height: 3.2mm; border-radius: 50%; background: var(--green); flex: none; }
+.progress { display: grid; grid-template-columns: 1fr 42mm; gap: 6mm; align-items: center; }
+.bar { position: relative; height: 9mm; background: var(--pale); border-radius: 2mm; margin-top: 8mm; }
+.bar .seg { position: absolute; top: 0; bottom: 0; }
+.bar .s1 { background: var(--green); border-radius: 2mm 0 0 2mm; }
+.bar .s2 { background: var(--mint); }
+.bar .s3 { background: var(--sun); }
+.bar .guide { position: absolute; top: -2mm; bottom: -2mm; width: .8mm; background: var(--deep); }
+.bar .guide b { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 1mm; background: var(--deep); color: #fff; font-size: 8.5pt; padding: .3mm 2.5mm; border-radius: 1.5mm; white-space: nowrap; font-weight: 500; }
+.ticks { display: flex; justify-content: space-between; font-size: 7.5pt; color: var(--muted); margin-top: 1.5mm; }
+.legend { display: flex; flex-wrap: wrap; gap: 1.5mm 5mm; margin-top: 3mm; font-size: 9pt; }
+.legend span::before { content: ""; display: inline-block; width: 2.6mm; height: 2.6mm; border-radius: .6mm; margin-right: 1.5mm; vertical-align: -.2mm; background: var(--c); }
+.donut { text-align: center; }
+.donut .big { font-family: var(--f-head); font-size: 24pt; color: var(--deep); line-height: 1.1; }
+.donut small { display: block; font-size: 8pt; color: var(--muted); }
+.cheer { margin: 3mm 0 0; font-size: 10pt; }
+.remain { margin-top: 2mm; font-size: 10pt; background: var(--pale); border-radius: 2mm; padding: 2mm 3mm; }
+.remain b { color: var(--deep); font-size: 12pt; }
+.source { font-size: 7.5pt; color: var(--muted); margin-top: 2mm; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 5mm; }
+ul.plain { list-style: none; margin: 0; padding: 0; display: grid; gap: 1.6mm; }
+ul.plain li { display: flex; gap: 2.5mm; align-items: baseline; }
+.date { flex: none; background: var(--green); color: #fff; font-size: 8pt; border-radius: 1.2mm; padding: 0 2mm; }
+.dot { flex: none; width: 2.4mm; height: 2.4mm; border-radius: 50%; background: var(--sun); position: relative; top: .2mm; }
+.who { font-weight: 700; flex: none; }
+.steps { background: var(--pale); border-color: var(--mint); }
+.steps li::before { content: ""; flex: none; width: 3.4mm; height: 3.4mm; border: .5mm solid var(--green); border-radius: .8mm; position: relative; top: .5mm; }
+.steps li { display: flex; gap: 2.5mm; }
+.foot { background: var(--deep); color: #fff; text-align: center; padding: 4mm 14mm; font-size: 10pt; margin-top: auto; }
+.thanks { display: grid; gap: 4mm; }
+.person { display: grid; grid-template-columns: 12mm 1fr; gap: 4mm; }
+.avatar { width: 12mm; height: 12mm; border-radius: 50%; background: var(--c, var(--green)); color: #fff; font-family: var(--f-head); font-size: 13pt; display: grid; place-items: center; }
+.person h3 { margin: 0 0 1mm; font-family: var(--f-head); font-size: 12pt; }
+.person h3 em { font-style: normal; color: var(--green); font-size: 10pt; margin-left: 2mm; }
+.person ul { margin: 0; padding-left: 4.5mm; }
+.person li { margin: .6mm 0; }
+.rest { background: var(--pale); border-color: var(--mint); font-size: 10pt; }
+.tomorrow { background: var(--green); color: #fff; border: none; text-align: center; padding: 6mm; }
+.tomorrow strong { font-family: var(--f-head); font-size: 16pt; display: block; }
+.badge { position: absolute; right: 14mm; top: 13mm; background: var(--sun); color: var(--ink); border-radius: 2mm; padding: 1mm 4mm; font-size: 10pt; font-weight: 700; z-index: 1; }
+.unknown { color: var(--muted); }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+(function () {
+  const D = window.DATA || {};
+  const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const pctTxt = v => (v == null || v === "") ? "不明" : `${Number(v).toFixed(1).replace(/\.0$/, "")}%`;
+  const p = D.progress || {};
+  const parts = [
+    { k: "決済済", v: p.settled, c: "var(--green)", cls: "s1" },
+    { k: "契約済・決済待ち", v: p.contracted, c: "var(--mint)", cls: "s2" },
+    { k: "契約予定", v: p.planned, c: "var(--sun)", cls: "s3" },
+  ].filter(x => x.v != null && x.v !== "");
+  let left = 0;
+  const segs = parts.map(x => { const w = Math.max(0, Math.min(100 - left, Number(x.v))); const h = `<div class="seg ${x.cls}" style="left:${left}%;width:${w}%"></div>`; left += w; return h; }).join("");
+  const total = p.total != null ? p.total : parts.reduce((a, x) => a + Number(x.v), 0);
+  const remain = p.remain != null ? p.remain : (parts.length ? Math.max(0, 100 - total) : null);
+  const guide = p.guide;
+  const list = (items, fn) => (items && items.length) ? `<ul class="plain">${items.map(fn).join("")}</ul>` : `<p class="unknown">${esc(D.emptyNote || "記録が見つかりませんでした")}</p>`;
+  const colors = ["var(--green)", "var(--mint)", "var(--sun)", "var(--coral)", "var(--deep)"];
+
+  const page1 = `
+  <section class="page">
+    <header class="hero">
+      <div class="brand">SMART HOUSE ／ 営業パイプライン</div>
+      <h1>今日のみんなの進み ${esc(D.dateLabel)}</h1>
+      <p>${esc(D.lead || "今日もおつかれさまでした。数字は、みんなの仕事の積み重ねです。")}</p>
+    </header>
+    <div class="body">
+      <div class="card">
+        <h2>みんなの目標までの道のり${p.term ? `（${esc(p.term)}）` : ""}</h2>
+        <div class="progress">
+          <div>
+            <div class="bar">${segs}${guide != null ? `<div class="guide" style="left:${Math.min(100, Number(guide))}%"><b>いまの目安 ${pctTxt(guide)}</b></div>` : ""}</div>
+            <div class="ticks"><span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span></div>
+            <div class="legend">${parts.map(x => `<span style="--c:${x.c}">${esc(x.k)} ${pctTxt(x.v)}${x.k === "決済済" && p.settledCount != null ? `（${esc(p.settledCount)}件）` : ""}${x.k === "契約済・決済待ち" && p.contractedCount != null ? `（${esc(p.contractedCount)}件）` : ""}</span>`).join("")}</div>
+          </div>
+          <div class="donut"><div class="big">${parts.length ? pctTxt(total) : "不明"}</div><small>達成（見込み込み）</small></div>
+        </div>
+        ${remain != null ? `<div class="remain">目標まで、あと <b>${pctTxt(remain)}</b>。${esc(p.cheer || "みんなの力を合わせて、ここから取りにいきましょう!")}</div>` : ""}
+        <div class="source">${esc(p.sourceNote || "")}</div>
+      </div>
+      <div class="two">
+        <div class="card">
+          <h2>これからの山場</h2>
+          ${list(D.upcoming, x => `<li><span class="date">${esc(x.date)}</span><span>${esc(x.text)}</span></li>`)}
+        </div>
+        <div class="card">
+          <h2>ナイス!ありがとう</h2>
+          ${list(D.nice, x => `<li><span class="dot"></span><span><span class="who">${esc(x.name)}</span>　${esc(x.text)}</span></li>`)}
+        </div>
+      </div>
+      <div class="card steps">
+        <h2>明日の一歩（小さくてOK）</h2>
+        <ul class="plain">${(D.steps || []).map(s => `<li>${esc(s)}</li>`).join("")}</ul>
+      </div>
+    </div>
+    <footer class="foot">${esc(D.footer || "明日もいっしょに前へ!")}　スマートハウス</footer>
+  </section>`;
+
+  const thanks = D.thanks || [];
+  const nItems = thanks.reduce((a, t) => a + (t.items || []).length, 0);
+  const page2 = `
+  <section class="page">
+    <header class="hero">
+      <div class="brand">SMART HOUSE ／ 営業パイプライン</div>
+      <h1>今日の「ありがとう」</h1>
+      <p>${esc(D.dateLabel)}　みんなの「やりました」が、会社の力になります。</p>
+    </header>
+    ${nItems ? `<div class="badge">${thanks.filter(t => (t.items || []).length).length}名・${nItems}件のありがとう</div>` : ""}
+    <div class="body">
+      <div class="thanks">
+        ${thanks.length ? thanks.map((t, i) => `
+        <div class="card person">
+          <div class="avatar" style="--c:${colors[i % colors.length]}">${esc((t.name || "").slice(0, 1))}</div>
+          <div>
+            <h3>${esc(t.name)}<em>ありがとうございます!</em></h3>
+            ${(t.items && t.items.length) ? `<ul>${t.items.map(x => `<li>${esc(x)}</li>`).join("")}</ul>` : `<p class="unknown">${esc(t.note || "今日の記録は見つかりませんでした。")}</p>`}
+          </div>
+        </div>`).join("") : `<div class="card"><p class="unknown">${esc(D.emptyNote || "今日の記録は見つかりませんでした。")}</p></div>`}
+      </div>
+      ${D.restNote ? `<div class="card rest">${esc(D.restNote)}</div>` : ""}
+      <div class="card tomorrow"><strong>${esc(D.closing || "今日もありがとうございました。明日もまた頑張りましょう!")}</strong></div>
+      <div class="source">${esc(D.recordNote || "")}</div>
+    </div>
+    <footer class="foot">ありがとうを、ことばにして残そう。　スマートハウス</footer>
+  </section>`;
+
+  document.getElementById("root").innerHTML = page1 + page2;
+  document.title = `営業パイプライン ${D.dateLabel || ""}`;
+})();
+</script>
+</body>
+</html>
