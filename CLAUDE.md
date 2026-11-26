@@ -14,6 +14,8 @@ docs/step2-connection-test.md 入力アプリ→受け皿の疎通テスト手�
 gas/DailyReportMailer.gs    まとめメール送信（Apps Script 版・恒久運用用）
 gas/Receiver.gs             入力アプリからの POST を受けてスプレッドシートに書く受け皿
 gas/README.md               DailyReportMailer の導入手順
+docs/sales-pipeline-routine.md 営業パイプライン（毎晩の報告）ルーティンの説明
+pipeline-pdf/               営業パイプライン PDF のひな形と作成スクリプト
 ```
 
 ## 絶対に守ること
